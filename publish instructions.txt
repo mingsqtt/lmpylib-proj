@@ -1,0 +1,11 @@
+# package
+python setup.py sdist bdist_wheel
+
+# publish to test index
+python -m twine upload --repository-url https://test.pypi.org/legacy/ dist/*-{enter_version_here??}*
+
+
+# install or update
+pip install --index-url https://test.pypi.org/simple/ --no-deps lmpylib-mingsqtt
+pip install --upgrade --index-url https://test.pypi.org/simple/ --no-deps lmpylib-mingsqtt=={enter_version_here??}
+
