@@ -241,6 +241,7 @@ def barplot(x, y=None, width=0.5, color=None, xlab=None, ylab=None, title=None, 
             else:
                 plt.bar(grouped.index, grouped.Count, width, color=color)
         elif type(x) == pd.DataFrame:
+            # if x is a normal DataFrame
             if len(x.dtypes) > 1:
                 if sort_by != "":
                     df = pd.DataFrame({"x": x.iloc[:, 0], "y": x.iloc[:, 1]}).sort_values(
@@ -253,13 +254,17 @@ def barplot(x, y=None, width=0.5, color=None, xlab=None, ylab=None, title=None, 
                     plt.barh(x.iloc[:, 0], x.iloc[:, 1], width, color=color)
                 else:
                     plt.bar(x.iloc[:, 0], x.iloc[:, 1], width, color=color)
+
+            # if x is a group_by DataFrame
             elif (str(x.dtypes[0]).find("float") >= 0) | (str(x.dtypes[0]).find("int") >= 0):
                 labels = [""] * len(x.index)
                 for i, item in enumerate(x.index):
+                    # multiple-indices
                     if type(item) == tuple:
-                        labels[i] = "/".join(item)
+                        labels[i] = "/".join([str(v) for v in item])
+                    # single-index
                     else:
-                        labels[i] = item
+                        labels[i] = str(item)
 
                 if sort_by != "":
                     df = pd.DataFrame({"x": labels, "y": x.iloc[:, 0]}).sort_values(
