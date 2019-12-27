@@ -41,3 +41,17 @@ grp_by_month_wday = grp_by_month_wday.fillna(0)
 barplot2(grp_by_month_wday, subplots_ncol=7, y_scale_range="fixed", x_scale_rotation=45, facet_label_mapper=month_lbls, x_scale_label_mapper=wday_labels, show=False, color="red", title="Importation Volume Arrived at Manila Port on Each Day by Month (Delivered to Plant)")
 
 auto_figure_size(2, 6, 0.93, 0.07, 0.2, 0.2, title_height=0.5)
+
+grpby3
+
+
+df = pd.DataFrame({"dest": ["Plant", "DC", "YC", "Bonded Location"], "2016": np.random.normal(0, 1, 4) * 10, "2017": np.random.normal(0, 1, 4) * 150, "2018": np.random.normal(0, 1, 4) * 1000, "port": [32, 53, 992, 2]})
+
+df_gat = gather(df, "year", "amount", [1,2,3])
+
+
+df, key_col, value_col, fill_numeric_na, new_col_name_format = grpby3, "month", "po_1", True, "{col_name}_{col_value}"
+
+
+
+

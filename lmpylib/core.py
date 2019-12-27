@@ -151,8 +151,8 @@ def summary(data, is_numeric=None, print_only=None, auto_combine_result=True, _n
         else:
             sum_return = _summarize_categorical(data)
 
-        if (print_only is not None) & (print_only == True):
-            print(sum_return)
+        if (print_only is not None) and print_only:
+            print(sum_return, "\n")
         else:
             return sum_return
     elif type_data == pd.DataFrame:
@@ -190,11 +190,10 @@ def summary(data, is_numeric=None, print_only=None, auto_combine_result=True, _n
                 sum_return[datetime_summaries.index[0]] = datetime_summaries
                 datetime_summaries.index = [""]
 
-        if ((print_only is None) & (len(sum_return) > 1)) | (print_only == True):
+        if ((print_only is None) and (len(sum_return) > 1)) or print_only:
             for key in sum_return:
                 print("<< {} >>".format(key))
-                print(sum_return[key])
-                print()
+                print(sum_return[key], "\n")
         elif len(sum_return) == 1:
             return list(sum_return.values())[0]
         else:
@@ -204,14 +203,13 @@ def summary(data, is_numeric=None, print_only=None, auto_combine_result=True, _n
 
 
 def structure(data_frame, group_by_type=False, sort_by_type=False, print_only=True):
-    if group_by_type | sort_by_type:
-        if print_only & group_by_type:
+    if group_by_type or sort_by_type:
+        if print_only and group_by_type:
             summ = pd.DataFrame({"column": data_frame.columns.to_list(), "type": [str(t) for t in data_frame.dtypes]})
             for tp in summ.groupby(by="type").indices:
                 print("{}:".format(tp))
-                print(summ.column.loc[summ.type == tp].to_list())
-                print()
-        elif print_only & sort_by_type:
+                print(summ.column.loc[summ.type == tp].to_list(), "\n")
+        elif print_only and sort_by_type:
             summ = pd.DataFrame({"column": data_frame.columns.to_list(), "type": [str(t) for t in data_frame.dtypes], "index": range(len(data_frame.dtypes))}).sort_values(["type", "index"])
             names = summ.column.to_list()
             max_len = max([len(n) for n in names])
@@ -873,8 +871,10 @@ def barplot2(x, width=0.5, color=None, xlab=None, ylab=None, title=None, sort_by
             "x must be a DataFrame with 1 numeric column, 2 indices (without group_by) or 3 indices (with group_by).")
 
 
-def plot(x, y=None, style="solid", width=1.0, color=None, marker=None, marker_size=None, xlab=None, ylab=None, title=None,
-         x_scale_ticks=None, x_scale_rotation=0, show=True):
+def plot(x, y=None, style="solid", width=1.0, color=None, marker=None, marker_size=None, xlab=None, ylab=None,
+             title=None,
+             x_scale_ticks=None, x_scale_rotation=0, group_by=None, group_label_mapper=None, legend_title=None,
+             legend_loc="upper right", show=True):
 
     plt.style.use("ggplot")
 
@@ -963,7 +963,96 @@ def cartesian_dataframe(df1, df2):
     return df.reset_index(drop=True)
 
 
+def gather(df, key_col, value_col, gather_cols, create_new_index=True):
+    if type(gather_cols[0]) == int:
+        gather_cols = df.columns.values[gather_cols]
+    elif type(gather_cols[0]) != str:
+        raise Exception("gather_cols must be array of column index or column name.")
+
+    df_gathered = df.loc[:, df.columns.values[pd.Series(df.columns.values).isin(gather_cols).values == False]].copy()
+    df_gathered[key_col] = None
+    df_gathered[value_col] = None
+    key_col_idx = len(df_gathered.columns) - 2
+    value_col_idx = len(df_gathered.columns) - 1
+
+    for c in range(len(gather_cols)):
+        if c > 0:
+            df_gathered = pd.concat([df_gathered, df_gathered.copy()], ignore_index=create_new_index)
+        row_from = c * len(df)
+        row_to = (c + 1) * len(df)
+        df_gathered.iloc[row_from:row_to, key_col_idx] = gather_cols[c]
+        df_gathered.iloc[row_from:row_to, value_col_idx] = df[gather_cols[c]].values
+
+    return df_gathered
 
 
+def spread(df, key_col, value_col, fill_numeric_na=True, new_col_name_format="{col_name}_{col_value}"):
+    index_dim = None
+    index_of_index = None
+    if type(key_col) == int:
+        key_col = df.columns.values[key_col]
+    elif type(key_col) != str:
+        raise Exception("key_col must be either column name or index name of a multi-indices data frame.")
+    elif np.sum(df.columns.values == key_col) == 0:
+        index_of_index = df.index.names.index(key_col)
+        index_dim = len(df.index[0])
+        if index_dim <= 1:
+            raise Exception("key_col must be either column name or index name of a multi-indices data frame.")
+
+    if type(value_col) == int:
+        value_col = df.columns.values[value_col]
+    elif (type(value_col) != str) or (np.sum(df.columns.values == value_col) == 0):
+        raise Exception("value_col must be either column index or column name.")
+
+    df_spread = None
+    # the key column is a normal column
+    if index_dim is None:
+        key_values = df.loc[:, key_col].unique()
+        keep_cols = list(df.columns.values[pd.Series(df.columns.values).isin([key_col, value_col]).values == False])
+        group_indices = df.loc[:, keep_cols + [key_col]].groupby(by=keep_cols).count().index
+
+        df_spread = pd.DataFrame({})
+        for i, c in enumerate(keep_cols):
+            if type(group_indices[0]) == tuple:
+                df_spread[str(c)] = [tup[i] for tup in group_indices]
+            else:
+                df_spread[str(c)] = group_indices
+
+        for k in key_values:
+            df_spread = df_spread.merge(df.loc[df[key_col] == k, keep_cols + [value_col]], how="left", on=keep_cols)
+
+        if (new_col_name_format is None) or (new_col_name_format == ""):
+            df_spread.columns = keep_cols + [key_col + str(i) for i, k in enumerate(key_values)]
+        elif (new_col_name_format.find("{col_name}") >= 0) or (new_col_name_format.find("{col_value}") >= 0):
+            df_spread.columns = keep_cols + [
+                new_col_name_format.replace("{col_name}", key_col).replace("{col_value}", str(k)) for k in key_values]
+        elif new_col_name_format.find("{}") >= 0:
+            df_spread.columns = keep_cols + [new_col_name_format.format(str(k)) for k in key_values]
+        else:
+            df_spread.columns = keep_cols + [new_col_name_format + str(k) for k in key_values]
+
+        if fill_numeric_na and (
+                (str(df[value_col].dtype).find("int") >= 0) or (str(df[value_col].dtype).find("float") >= 0)):
+            start_ind = len(df_spread.columns) - len(key_values)
+            end_ind = len(df_spread.columns)
+            df_spread.iloc[:, list(range(start_ind, end_ind))] = df_spread.iloc[:,
+                                                                 list(range(start_ind, end_ind))].fillna(0).values
+
+    # the key column is the index of the df, and the df only has multiple indices
+    else:
+        df_temp = df.copy()
+        df_temp.index = list(range(len(df)))
+
+        keep_name_of_index = list()
+        for i, c in enumerate(df.index.names):
+            df_temp[c] = [tup[i] for tup in df.index]
+            if i != index_of_index:
+                keep_name_of_index.append(c)
+
+        df_spread = spread(df_temp, key_col, value_col, fill_numeric_na=fill_numeric_na,
+                           new_col_name_format="" if new_col_name_format is None else new_col_name_format)
+        df_spread = df_spread.set_index(keep_name_of_index)
+
+    return df_spread
 
 

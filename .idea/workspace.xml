@@ -2,12 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="64aaccb9-d22a-4f66-befa-e14978b25159" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lmpylib/core.py" beforeDir="false" afterPath="$PROJECT_DIR$/lmpylib/core.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lmpylib/version.py" beforeDir="false" afterPath="$PROJECT_DIR$/lmpylib/version.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/publish instructions.txt" beforeDir="false" afterPath="$PROJECT_DIR$/publish instructions.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/test.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -20,8 +17,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/test.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="86">
-              <caret line="22" selection-start-line="22" selection-end-line="22" selection-end-column="146" />
+            <state relative-caret-position="149">
+              <caret line="54" selection-start-line="54" selection-end-line="54" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -32,8 +29,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/lmpylib/core.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-4126">
-              <caret line="587" lean-forward="true" selection-start-line="587" selection-end-line="587" />
+            <state relative-caret-position="143">
+              <caret line="986" lean-forward="true" selection-start-line="986" selection-end-line="986" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -52,11 +49,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>title_fontsize</find>
-      <find>stack_dodge_lbls</find>
-      <find>x.columns[group_col]).sum().sort_values(ascending=groups_ascending)</find>
-      <find>x.columns.values[group_col]).sum().sort_values(ascending=groups_ascending)</find>
-      <find>_bar_ticks</find>
       <find>x_ticks</find>
       <find>scale_labels</find>
       <find>_barplot_grouped</find>
@@ -82,6 +74,11 @@
       <find>title_height</find>
       <find>reverse_axis_ratio</find>
       <find>auto_figure_size</find>
+      <find>plot</find>
+      <find>print(</find>
+      <find>np.argwhere</find>
+      <find>remaining_cols</find>
+      <find>keep_index_of_index</find>
     </findStrings>
     <replaceStrings>
       <replace>indices_sec</replace>
@@ -95,6 +92,7 @@
       <replace>facet_label_mapper</replace>
       <replace>groups_sort_by_value</replace>
       <replace>horizontal</replace>
+      <replace>keep_cols</replace>
     </replaceStrings>
   </component>
   <component name="Git.Settings">
@@ -113,8 +111,8 @@
         <option value="$PROJECT_DIR$/publish instructions.txt" />
         <option value="$PROJECT_DIR$/.gitignore" />
         <option value="$PROJECT_DIR$/test.py" />
-        <option value="$PROJECT_DIR$/lmpylib/version.py" />
         <option value="$PROJECT_DIR$/lmpylib/core.py" />
+        <option value="$PROJECT_DIR$/lmpylib/version.py" />
       </list>
     </option>
   </component>
@@ -207,7 +205,7 @@
       <window_info anchor="bottom" id="Version Control" order="7" />
       <window_info anchor="bottom" id="Terminal" order="8" />
       <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
-      <window_info anchor="bottom" id="Python Console" order="10" visible="true" weight="0.2759124" />
+      <window_info anchor="bottom" id="Python Console" order="10" visible="true" weight="0.51240873" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -274,6 +272,19 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/lmpylib_mingsqtt.egg-info/SOURCES.txt">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="149">
+          <caret line="54" selection-start-line="54" selection-end-line="54" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/lmpylib/version.py">
       <provider selected="true" editor-type-id="text-editor">
         <state>
@@ -281,20 +292,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="86">
-          <caret line="22" selection-start-line="22" selection-end-line="22" selection-end-column="146" />
-          <folding>
-            <element signature="e#0#18#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/lmpylib/core.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-4126">
-          <caret line="587" lean-forward="true" selection-start-line="587" selection-end-line="587" />
+        <state relative-caret-position="143">
+          <caret line="986" lean-forward="true" selection-start-line="986" selection-end-line="986" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
