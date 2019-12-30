@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="64aaccb9-d22a-4f66-befa-e14978b25159" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lmpylib/core.py" beforeDir="false" afterPath="$PROJECT_DIR$/lmpylib/core.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lmpylib/version.py" beforeDir="false" afterPath="$PROJECT_DIR$/lmpylib/version.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/test.py" afterDir="false" />
@@ -13,32 +14,7 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="FileEditorManager">
-    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/test.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="149">
-              <caret line="54" selection-start-line="54" selection-end-line="54" />
-              <folding>
-                <element signature="e#0#18#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/lmpylib/core.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="143">
-              <caret line="986" lean-forward="true" selection-start-line="986" selection-end-line="986" />
-              <folding>
-                <element signature="e#0#18#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-    </leaf>
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300" />
   </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
@@ -49,36 +25,36 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>x_ticks</find>
-      <find>scale_labels</find>
-      <find>_barplot_grouped</find>
-      <find>indices_sec</find>
-      <find>df_all</find>
-      <find>stack_dodge_val</find>
-      <find>x_col</find>
-      <find>set_xticklabels</find>
-      <find>groupby</find>
-      <find>x_axis_label_mapper</find>
-      <find>ax.set_yticklabels(x_ticks, x_labels, rotation=x_scale_rotation)</find>
-      <find>[&quot;None&quot; if k is None else mapper[k] for k in keys_or_indices]</find>
-      <find>axes[-1, -n_hidden_axes]</find>
-      <find>figure_inches</find>
-      <find>groups_ascending</find>
-      <find>axes[-1, (n_hidden_axes-1):].axis(&quot;off&quot;)</find>
-      <find>n_hidden_axes</find>
-      <find>subplots_adjust</find>
-      <find>hide</find>
-      <find>_auto_figure_size</find>
-      <find>subplots_adjust_bottom</find>
-      <find>subplots_adjust_hspace</find>
-      <find>title_height</find>
-      <find>reverse_axis_ratio</find>
-      <find>auto_figure_size</find>
-      <find>plot</find>
-      <find>print(</find>
-      <find>np.argwhere</find>
-      <find>remaining_cols</find>
-      <find>keep_index_of_index</find>
+      <find>plot(</find>
+      <find>barplot2</find>
+      <find>marker_size[</find>
+      <find>.scatter(</find>
+      <find>.iloc[f</find>
+      <find>ax.set_ylim([global_min_y * 1.05, global_max_y * 1.05])</find>
+      <find>global_min_y</find>
+      <find>global_max_y</find>
+      <find>y_scale_range</find>
+      <find>ax.set_ylim([0, y_scale_range])</find>
+      <find>_dynamic_marker_size</find>
+      <find>0.3</find>
+      <find>alpha=</find>
+      <find>markersize=marker_size, alpha=1 if alpha is None else alpha)</find>
+      <find>scatter</find>
+      <find>_normalize_z</find>
+      <find>stand</find>
+      <find>_is_numeric_array</find>
+      <find>category</find>
+      <find>Category</find>
+      <find>_is_num</find>
+      <find>np.ndarray</find>
+      <find>Categorical</find>
+      <find>barplot</find>
+      <find>_get_category_levels</find>
+      <find>_fac</find>
+      <find>color=color</find>
+      <find>x_scale_label_mapper</find>
+      <find>plot2</find>
+      <find>_facet_plot</find>
     </findStrings>
     <replaceStrings>
       <replace>indices_sec</replace>
@@ -93,6 +69,10 @@
       <replace>groups_sort_by_value</replace>
       <replace>horizontal</replace>
       <replace>keep_cols</replace>
+      <replace>date_obj_list</replace>
+      <replace>indices</replace>
+      <replace>_normalize_z</replace>
+      <replace>_try_get_cat_levels</replace>
     </replaceStrings>
   </component>
   <component name="Git.Settings">
@@ -110,6 +90,7 @@
         <option value="$PROJECT_DIR$/lmpylib/cv.py" />
         <option value="$PROJECT_DIR$/publish instructions.txt" />
         <option value="$PROJECT_DIR$/.gitignore" />
+        <option value="$PROJECT_DIR$/lmpylib/plots.py" />
         <option value="$PROJECT_DIR$/test.py" />
         <option value="$PROJECT_DIR$/lmpylib/core.py" />
         <option value="$PROJECT_DIR$/lmpylib/version.py" />
@@ -126,7 +107,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -143,6 +123,7 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -190,9 +171,8 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="23" width="1280" height="777" extended-state="0" />
-    <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.26171243" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.26979" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -205,7 +185,7 @@
       <window_info anchor="bottom" id="Version Control" order="7" />
       <window_info anchor="bottom" id="Terminal" order="8" />
       <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
-      <window_info anchor="bottom" id="Python Console" order="10" visible="true" weight="0.51240873" />
+      <window_info anchor="bottom" id="Python Console" order="10" visible="true" weight="0.4481752" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -223,9 +203,6 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/lmpylib/__init__.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/lmpylib/nlp.py">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
     <entry file="file://$PROJECT_DIR$/lmpylib/cv.py">
@@ -275,16 +252,10 @@
     <entry file="file://$PROJECT_DIR$/lmpylib_mingsqtt.egg-info/SOURCES.txt">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="149">
-          <caret line="54" selection-start-line="54" selection-end-line="54" />
-          <folding>
-            <element signature="e#0#18#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
+    <entry file="file://$PROJECT_DIR$/lmpylib/nlp.py">
+      <provider selected="true" editor-type-id="text-editor" />
     </entry>
+    <entry file="file://$PROJECT_DIR$/lmpylib/plots.py" />
     <entry file="file://$PROJECT_DIR$/lmpylib/version.py">
       <provider selected="true" editor-type-id="text-editor">
         <state>
@@ -294,8 +265,18 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/lmpylib/core.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="143">
-          <caret line="986" lean-forward="true" selection-start-line="986" selection-end-line="986" />
+        <state relative-caret-position="233">
+          <caret line="427" column="24" lean-forward="true" selection-start-line="427" selection-start-column="24" selection-end-line="427" selection-end-column="24" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="72">
+          <caret line="44" lean-forward="true" selection-start-line="44" selection-end-line="44" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
