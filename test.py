@@ -17,7 +17,7 @@ barplot(grpbyprodmonth, sort_by="x", ascending=True)
 barplot(grpbyprodmonth, group_by="month", sort_by="x", ascending=True, group_position="dodge")
 barplot(grpbyprodmonth, group_by="month", sort_by="x", ascending=True, group_position="dodge", groups_sort_by_value=False)
 barplot(grpbyprodmonth, group_by="prod_cat", sort_by="x", ascending=True)
-barplot(grpbymonthprod, sort_by="x")
+barplot2(grpbymonthprod, sort_by="x", figure_inches=(5,2))
 barplot(grpbymonth, sort_by="x", ascending=True)
 barplot(x=grpbymonth.index.values, y=grpbymonth.po_1, sort_by="x", ascending=True)
 
@@ -96,4 +96,38 @@ dynamic_marker_size = np.linspace(1, 5000, 11)
 normalize_z_range = (10, 1000)
 min_z = np.min(dynamic_marker_size)
 max_z = np.max(dynamic_marker_size)
+
+
+
+points = np.array([[1, 0.5]*10], dtype=float).reshape(-1, 2)
+
+# x, y 放大同等倍数
+trans_mtx1 = np.array([np.linspace(1, 2, 10), np.zeros(10), np.zeros(10), np.linspace(1, 2, 10)]).reshape(2, 2, -1).transpose().reshape(-1, 2, 2)
+# y 放大倍数 是 x 放大倍数 * 2
+trans_mtx2 = np.array([np.linspace(1, 2, 10), np.zeros(10), np.zeros(10), np.linspace(1, 2, 10)*2]).reshape(2, 2, -1).transpose().reshape(-1, 2, 2)
+# x, y 翻转，翻转后再各自同等倍数放大
+trans_mtx3 = np.array([np.zeros(10), np.linspace(1, 2, 10), np.linspace(1, 2, 10), np.zeros(10)]).reshape(2, 2, -1).transpose().reshape(-1, 2, 2)
+# x, y 翻转，翻转后再各自以不同倍数放大，y 放大倍数 是 x 放大倍数 * 2
+trans_mtx4 = np.array([np.zeros(10), np.linspace(1, 2, 10), np.linspace(1, 2, 10)*3, np.zeros(10)]).reshape(2, 2, -1).transpose().reshape(-1, 2, 2)
+
+trans_points = points.copy()
+for i in range(len(points)):
+    trans_points[i] = points[i].dot(trans_mtx1[i])
+trans_points
+scatter(trans_points[:, 0], trans_points[:, 1], color="yellow", alpha=1, show=False)
+trans_points = points.copy()
+for i in range(len(points)):
+    trans_points[i] = points[i].dot(trans_mtx3[i])
+trans_points
+scatter(trans_points[:, 0], trans_points[:, 1], color="orange", alpha=1, show=False)
+trans_points = points.copy()
+for i in range(len(points)):
+    trans_points[i] = points[i].dot(trans_mtx1[i] + trans_mtx3[i])
+trans_points
+scatter(trans_points[:, 0], trans_points[:, 1], color="red", alpha=1, show=False)
+scatter([points[0, 0]], [points[0, 1]], color="green", marker_size=20, show=False)
+plt.xticks(np.linspace(0, 5, 11, dtype=float))
+plt.yticks(np.linspace(0, 5, 11, dtype=float))
+
+
 

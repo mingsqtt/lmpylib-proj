@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+from matplotlib import colors
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
+import seaborn as sns
 import itertools
 import math
 from datetime import date
@@ -336,6 +340,20 @@ def _get_group_index_of_index(x, group_by):
         raise Exception("group_by must be a DataFrame's index name or DataFrame's index number")
 
 
+def _continuous_color_map(z_arr, base_color):
+    hue = 0.8
+    if base_color is not None:
+        rgb = colors.to_rgb(base_color)
+        hue = colors.rgb_to_hsv(rgb)[0]
+    vmin = np.nanmin(z_arr)
+    vmax = np.nanmax(z_arr)
+    if (vmax > 255) or (vmax < 200) or (vmin < 0) or (vmin > 150):
+        return ScalarMappable(norm=Normalize(vmin=vmin, vmax=vmax),
+                        cmap=sns.cubehelix_palette(as_cmap=True, hue=hue))
+    else:
+        return ScalarMappable(cmap=sns.cubehelix_palette(as_cmap=True, hue=hue))
+
+
 # supported x examples:
 # df index: (facet, x_numeric) {col0: y_numeric}
 # df index: (facet, x_numeric) {col0: y_numeric, col1: z_numeric}
@@ -346,7 +364,7 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                 horizontal=False, figure_inches=None, y_scale_range=None, x_scale_ticks=None, x_scale_rotation=0,
                 standardize_x_ticks_for_grouped_line_plots=False,
                 x_scale_label_mapper=None, facet_label_mapper=None, subplots_ncol=4, subplots_adjust=None,
-                subplots_adjust_top=1.0, subplots_adjust_bottom=0.0, subplots_adjust_hspace=0.2,
+                subplots_adjust_top=None, subplots_adjust_bottom=0.0, subplots_adjust_hspace=0.2,
                 subplots_adjust_wspace=0.2,
                 groups_sort_by_value=True, groups_ascending=False,
                 group_label_mapper=None,
@@ -454,10 +472,11 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                                                       subplots_adjust_hspace,
                                                       subplots_adjust_wspace,
                                                       title_height=0.5, horizontal=horizontal)
-                plt.subplots_adjust(top=new_top)
+                if subplots_adjust_top is None:
+                    plt.subplots_adjust(top=new_top)
             else:
                 auto_size, _ = auto_figure_size(subplots_ncol, subplot_nrow,
-                                                subplots_adjust_top,
+                                                1 if subplots_adjust_top is None else subplots_adjust_top,
                                                 subplots_adjust_bottom,
                                                 subplots_adjust_hspace,
                                                 subplots_adjust_wspace, horizontal=horizontal)
@@ -476,7 +495,7 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
             elif subplots_ncol == 1:
                 ax = axes[ax_row]
 
-            # without group
+            # no grouping
             if group_index is None:
                 y_col_name = "y_{}".format(i)
                 z_col_name = "z_{}".format(i)
@@ -506,10 +525,19 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
 
                     if (plot_type == "point") or (plot_type == "scatter"):
                         if facet_z_vals is not None:
-                            ax.scatter(facet_x_vals, facet_y_vals, color=color, marker=marker, s=facet_z_vals,
-                                       alpha=0.3 if alpha is None else alpha)
+                            if (color is not None) and (color != ""):
+                                cmap = _continuous_color_map(facet_z_vals, color).get_cmap()
+                                ax.scatter(facet_x_vals, facet_y_vals, c=facet_z_vals, cmap=cmap, marker=marker, s=marker_size,
+                                       alpha=1 if alpha is None else alpha)
+                            else:
+                                ax.scatter(facet_x_vals, facet_y_vals, marker=marker, s=facet_z_vals,
+                                           alpha=0.3 if alpha is None else alpha)
+                        elif (color is not None) and (color != ""):
+                            ax.scatter(facet_x_vals, facet_y_vals, c=np.repeat(color, len(facet_x_vals)), marker=marker,
+                                       s=marker_size,
+                                       alpha=1 if alpha is None else alpha)
                         else:
-                            ax.scatter(facet_x_vals, facet_y_vals, color=color, marker=marker, s=marker_size,
+                            ax.scatter(facet_x_vals, facet_y_vals, marker=marker, s=marker_size,
                                        alpha=1 if alpha is None else alpha)
                     elif plot_type == "line":
                         ax.plot(facet_x_vals, facet_y_vals, linewidth=width, linestyle=style, color=color,
@@ -1037,7 +1065,7 @@ def barplot(x, y=None, width=0.5, color=None, xlab=None, ylab=None, title=None, 
 def barplot2(x, width=0.5, color=None, xlab=None, ylab=None, title=None, sort_by="", ascending=False,
                  horizontal=False, figure_inches=None, y_scale_range=None, x_scale_rotation=0,
                  x_scale_label_mapper=None, facet_label_mapper=None, subplots_ncol=4, subplots_adjust=None,
-                 subplots_adjust_top=1.0, subplots_adjust_bottom=0.0, subplots_adjust_hspace=0.2,
+                 subplots_adjust_top=None, subplots_adjust_bottom=0.0, subplots_adjust_hspace=0.2,
                  subplots_adjust_wspace=0.2,
                  group_position="stack", groups_sort_by_value=True, groups_ascending=False,
                  group_label_mapper=None,
@@ -1495,9 +1523,15 @@ def plot(x, y=None, z=None, style="solid", width=1.5, color=None, marker=None, m
     if group_vals is None:
         if (style == "point") or (style == "scatter"):
             if z is not None:
-                plt.scatter(x_vals, y_vals, color=color, marker=marker, s=z, alpha=0.3 if alpha is None else alpha)
+                if (color is not None) and (color != ""):
+                    cmap = _continuous_color_map(z, color).get_cmap()
+                    plt.scatter(x_vals, y_vals, c=z, cmap=cmap, marker=marker, s=marker_size, alpha=1 if alpha is None else alpha)
+                else:
+                    plt.scatter(x_vals, y_vals, marker=marker, s=z, alpha=0.3 if alpha is None else alpha)
+            elif (color is not None) and (color != ""):
+                plt.scatter(x_vals, y_vals, c=np.repeat(color, len(x_vals)), marker=marker, s=marker_size, alpha=1 if alpha is None else alpha)
             else:
-                plt.scatter(x_vals, y_vals, color=color, marker=marker, s=marker_size, alpha=1 if alpha is None else alpha)
+                plt.scatter(x_vals, y_vals, marker=marker, s=marker_size, alpha=1 if alpha is None else alpha)
         else:
             if z is not None:
                 plt.plot(x_vals, y_vals, linewidth=z, linestyle=style, color=color, marker=marker,
@@ -1584,7 +1618,7 @@ def plot2(x, style="solid", width=1.5, color=None, marker=None, marker_size=None
               title=None, figure_inches=None, y_scale_range=None,
               x_scale_ticks=None, x_scale_rotation=0, x_scale_label_mapper=None, facet_label_mapper=None,
               subplots_ncol=4, subplots_adjust=None,
-              subplots_adjust_top=1.0, subplots_adjust_bottom=0.0, subplots_adjust_hspace=0.2,
+              subplots_adjust_top=None, subplots_adjust_bottom=0.0, subplots_adjust_hspace=0.2,
               subplots_adjust_wspace=0.2, standardize_x_ticks_for_grouped_line_plots=False,
               group_label_mapper=None, legend_title=None,
               legend_loc="upper right", show=True):
@@ -1634,7 +1668,7 @@ def _normalize_z(x, z, normalize_z_range):
         return marker_size
 
 
-def scatter(x, y=None, z=None, normalize_z_range=(10, 1000), color=None, marker=None, marker_size=10, alpha=None,
+def scatter(x, y=None, z=None, normalize_z_range=(10, 255), color=None, marker=None, marker_size=10, alpha=None,
                 xlab=None, ylab=None, title=None,
                 x_scale_ticks=None, x_scale_rotation=0, group_by=None,
                 group_label_mapper=None, legend_title=None,
@@ -1648,12 +1682,12 @@ def scatter(x, y=None, z=None, normalize_z_range=(10, 1000), color=None, marker=
          legend_loc=legend_loc, show=show)
 
 
-def scatter2(x, z=None, normalize_z_range=(10, 1000), color=None, marker=None, marker_size=None, alpha=None,
+def scatter2(x, z=None, normalize_z_range=(10, 255), color=None, marker=None, marker_size=None, alpha=None,
                  xlab=None, ylab=None,
                  title=None, figure_inches=None, y_scale_range=None,
                  x_scale_ticks=None, x_scale_rotation=0, x_scale_label_mapper=None, facet_label_mapper=None,
                  subplots_ncol=4, subplots_adjust=None,
-                 subplots_adjust_top=1.0, subplots_adjust_bottom=0.0, subplots_adjust_hspace=0.2,
+                 subplots_adjust_top=None, subplots_adjust_bottom=0.0, subplots_adjust_hspace=0.2,
                  subplots_adjust_wspace=0.2,
                  group_label_mapper=None, legend_title=None,
                  legend_loc="upper right", show=True):
