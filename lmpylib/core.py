@@ -366,6 +366,7 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                 x_scale_label_mapper=None, facet_label_mapper=None, subplots_ncol=4, subplots_adjust=None,
                 subplots_adjust_top=None, subplots_adjust_bottom=0.0, subplots_adjust_hspace=0.2,
                 subplots_adjust_wspace=0.2,
+                facets_sort_by_value=None, facets_ascending=False,
                 groups_sort_by_value=True, groups_ascending=False,
                 group_label_mapper=None,
                 legend_title=None, legend_loc="upper right", show=False):
@@ -394,14 +395,42 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
         group_index = 1 if len(x.index[0]) == 3 else None
 
         df_indices = x.index.values
-        all_facet_vals = [tup[facet_index] for tup in df_indices]
-        facet_vals = pd.Series(all_facet_vals).unique()
+
         all_x_vals = [tup[x_index] for tup in df_indices]
         x_vals = pd.Series(all_x_vals).unique()
+
         all_y_vals = x.iloc[:, 0].values
         global_max_y, global_min_y = None, None
         max_y = np.max(np.nanmax(all_y_vals), 0)
         min_y = np.min(np.nanmin(all_y_vals), 0)
+
+        all_facet_vals = [tup[facet_index] for tup in df_indices]
+        facet_vals = None
+        if facets_sort_by_value is not None:
+            if (type(facets_sort_by_value) == bool) and (facets_sort_by_value == True):
+                # 0:group, 2:f
+                temp = pd.DataFrame({"f": all_facet_vals, "y": all_y_vals})
+                temp.loc[: "y"] = temp.loc[: "y"].fillna(0)
+                temp = temp.groupby(by="f").sum().sort_values(by="y", ascending=facets_ascending)
+                facet_vals = temp.index.values
+            elif type(facets_sort_by_value) == str:
+                # 0:group, 2:f
+                temp = pd.DataFrame({"f": all_facet_vals, "y": all_y_vals})
+                temp.loc[: "y"] = temp.loc[: "y"].fillna(0)
+                if facets_sort_by_value == "sum":
+                    temp = temp.groupby(by="f").sum().sort_values(by="y", ascending=facets_ascending)
+                elif facets_sort_by_value == "mean":
+                    temp = temp.groupby(by="f").mean().sort_values(by="y", ascending=facets_ascending)
+                elif facets_sort_by_value == "median":
+                    temp = temp.groupby(by="f").median().sort_values(by="y", ascending=facets_ascending)
+                elif (facets_sort_by_value == "sd") or (facets_sort_by_value == "std"):
+                    temp = temp.groupby(by="f").std().sort_values(by="y", ascending=facets_ascending)
+                facet_vals = temp.index.values
+            else:
+                facet_vals = pd.Series(all_facet_vals).sort_values(ascending=facets_ascending).unique()
+        else:
+            facet_vals = pd.Series(all_facet_vals).unique()
+
         group_vals = None
         if group_index is not None:
             group_vals = pd.Series([tup[group_index] for tup in df_indices]).unique()
@@ -608,12 +637,27 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                     df_current_facet = df_facet_spread.loc[:, ["group", "x", f_col_name, fz_col_name]]
 
                 if groups_sort_by_value is not None:
-                    if groups_sort_by_value:
-                        # 0:group, 2:f
+                    if (type(groups_sort_by_value) == bool) and (groups_sort_by_value == True):
                         temp = df_current_facet.loc[:, ["group", f_col_name]]
                         temp.loc[:, f_col_name] = temp.loc[:, f_col_name].fillna(0)
                         temp = temp.groupby(by="group").sum().sort_values(by=f_col_name,
                                                                           ascending=groups_ascending)
+                        group_vals = temp.index.values
+                    elif type(groups_sort_by_value) == str:
+                        temp = df_current_facet.loc[:, ["group", f_col_name]]
+                        temp.loc[:, f_col_name] = temp.loc[:, f_col_name].fillna(0)
+                        if groups_sort_by_value == "sum":
+                            temp = temp.groupby(by="group").sum().sort_values(by=f_col_name,
+                                                                              ascending=groups_ascending)
+                        elif groups_sort_by_value == "mean":
+                            temp = temp.groupby(by="group").mean().sort_values(by=f_col_name,
+                                                                              ascending=groups_ascending)
+                        elif groups_sort_by_value == "median":
+                            temp = temp.groupby(by="group").median().sort_values(by=f_col_name,
+                                                                              ascending=groups_ascending)
+                        elif (groups_sort_by_value == "sd") or (groups_sort_by_value == "std"):
+                            temp = temp.groupby(by="group").std().sort_values(by=f_col_name,
+                                                                              ascending=groups_ascending)
                         group_vals = temp.index.values
                     else:
                         group_vals = df_current_facet.loc[:, "group"].sort_values(ascending=groups_ascending).unique()
@@ -799,10 +843,28 @@ def _barplot_grouped(x, x_col, y_col, group_col, group_position, width, color, x
 
     x_vals = x.iloc[:, x_col].unique()
     if groups_sort_by_value is not None:
-        if groups_sort_by_value:
+        if (type(groups_sort_by_value) == bool) and (groups_sort_by_value == True):
             temp = x.iloc[:, [y_col, group_col]].groupby(
                 by=x.columns.values[group_col]).sum().sort_values(by=x.columns.values[y_col],
                                                                   ascending=groups_ascending)
+            group_vals = temp.index.values
+        elif type(groups_sort_by_value) == str:
+            if groups_sort_by_value == "sum":
+                temp = x.iloc[:, [y_col, group_col]].groupby(
+                    by=x.columns.values[group_col]).sum().sort_values(by=x.columns.values[y_col],
+                                                                      ascending=groups_ascending)
+            elif groups_sort_by_value == "mean":
+                temp = x.iloc[:, [y_col, group_col]].groupby(
+                    by=x.columns.values[group_col]).mean().sort_values(by=x.columns.values[y_col],
+                                                                      ascending=groups_ascending)
+            elif groups_sort_by_value == "median":
+                temp = x.iloc[:, [y_col, group_col]].groupby(
+                    by=x.columns.values[group_col]).median().sort_values(by=x.columns.values[y_col],
+                                                                      ascending=groups_ascending)
+            elif (groups_sort_by_value == "sd") or (groups_sort_by_value == "std"):
+                temp = x.iloc[:, [y_col, group_col]].groupby(
+                    by=x.columns.values[group_col]).std().sort_values(by=x.columns.values[y_col],
+                                                                      ascending=groups_ascending)
             group_vals = temp.index.values
         else:
             group_vals = x.iloc[:, group_col].sort_values(ascending=groups_ascending).unique()
@@ -1066,7 +1128,7 @@ def barplot2(x, width=0.5, color=None, xlab=None, ylab=None, title=None, sort_by
                  horizontal=False, figure_inches=None, y_scale_range=None, x_scale_rotation=0,
                  x_scale_label_mapper=None, facet_label_mapper=None, subplots_ncol=4, subplots_adjust=None,
                  subplots_adjust_top=None, subplots_adjust_bottom=0.0, subplots_adjust_hspace=0.2,
-                 subplots_adjust_wspace=0.2,
+                 subplots_adjust_wspace=0.2, facets_sort_by_value=None, facets_ascending=False,
                  group_position="stack", groups_sort_by_value=True, groups_ascending=False,
                  group_label_mapper=None,
                  legend_title=None, legend_loc="upper right", show=False):
@@ -1079,6 +1141,7 @@ def barplot2(x, width=0.5, color=None, xlab=None, ylab=None, title=None, sort_by
                 subplots_adjust_top=subplots_adjust_top, subplots_adjust_bottom=subplots_adjust_bottom,
                 subplots_adjust_hspace=subplots_adjust_hspace,
                 subplots_adjust_wspace=subplots_adjust_wspace,
+                facets_sort_by_value=facets_sort_by_value, facets_ascending=facets_ascending,
                 groups_sort_by_value=groups_sort_by_value, groups_ascending=groups_ascending,
                 group_label_mapper=group_label_mapper,
                 legend_title=legend_title, legend_loc=legend_loc, show=show)
@@ -1619,7 +1682,7 @@ def plot2(x, style="solid", width=1.5, color=None, marker=None, marker_size=None
               x_scale_ticks=None, x_scale_rotation=0, x_scale_label_mapper=None, facet_label_mapper=None,
               subplots_ncol=4, subplots_adjust=None,
               subplots_adjust_top=None, subplots_adjust_bottom=0.0, subplots_adjust_hspace=0.2,
-              subplots_adjust_wspace=0.2, standardize_x_ticks_for_grouped_line_plots=False,
+              subplots_adjust_wspace=0.2, facets_sort_by_value=None, facets_ascending=False, standardize_x_ticks_for_grouped_line_plots=False,
               group_label_mapper=None, legend_title=None,
               legend_loc="upper right", show=True):
 
@@ -1635,6 +1698,7 @@ def plot2(x, style="solid", width=1.5, color=None, marker=None, marker_size=None
                 subplots_adjust_top=subplots_adjust_top, subplots_adjust_bottom=subplots_adjust_bottom,
                 subplots_adjust_hspace=subplots_adjust_hspace,
                 subplots_adjust_wspace=subplots_adjust_wspace,
+                facets_sort_by_value=facets_sort_by_value, facets_ascending=facets_ascending,
                 group_label_mapper=group_label_mapper,
                 legend_title=legend_title, legend_loc=legend_loc, show=show)
 

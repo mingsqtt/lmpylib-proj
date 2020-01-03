@@ -131,3 +131,10 @@ plt.yticks(np.linspace(0, 5, 11, dtype=float))
 
 
 
+
+top_importer = import_data[["po_1", "carrier"]].groupby("carrier").count().sort_values("po_1", ascending=False)
+barplot(top_importer[:20], x_scale_rotation=90, title='Top 20 Carriers for Import')
+top_importer_names = top_importer.index.values[:10]
+top_importer_bymonth = import_data.loc[import_data.carrier.isin(top_importer_names), ["po_1", "carrier", "month"]].groupby(["carrier", "month"]).count()#.sort_values("po_1", ascending=False)
+top_importer_bymonth = top_importer_bymonth.fillna(0)
+barplot2(top_importer_bymonth, y_scale_range="fixed", facets_sort_by_value="sd")

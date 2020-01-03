@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="64aaccb9-d22a-4f66-befa-e14978b25159" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lmpylib/core.py" beforeDir="false" afterPath="$PROJECT_DIR$/lmpylib/core.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lmpylib/version.py" beforeDir="false" afterPath="$PROJECT_DIR$/lmpylib/version.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/test.py" afterDir="false" />
@@ -15,11 +14,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/lmpylib/core.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="128">
-              <caret line="1527" column="57" selection-end-line="2005" />
+            <state relative-caret-position="104">
+              <caret line="1682" column="31" selection-start-line="1682" selection-start-column="31" selection-end-line="1682" selection-end-column="31" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -27,11 +26,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/test.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="37">
-              <caret line="113" column="14" selection-start-line="113" selection-start-column="14" selection-end-line="113" selection-end-column="14" />
+            <state relative-caret-position="238">
+              <caret line="139" column="74" selection-start-line="139" selection-start-column="54" selection-end-line="139" selection-end-column="74" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -50,14 +49,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>_dynamic_marker_size</find>
-      <find>0.3</find>
-      <find>alpha=</find>
-      <find>markersize=marker_size, alpha=1 if alpha is None else alpha)</find>
-      <find>scatter</find>
-      <find>_normalize_z</find>
-      <find>stand</find>
-      <find>_is_numeric_array</find>
       <find>category</find>
       <find>Category</find>
       <find>_is_num</find>
@@ -68,10 +59,8 @@
       <find>_fac</find>
       <find>color=color</find>
       <find>x_scale_label_mapper</find>
-      <find>plot2</find>
       <find>subplots_adjust_top</find>
       <find>subplots_adjust_top=</find>
-      <find>_facet_plot</find>
       <find>1000</find>
       <find>=z</find>
       <find>(color is not None) and (color != &quot;&quot;)</find>
@@ -80,6 +69,16 @@
       <find>plt.scatter(x_vals, y_vals, color=color</find>
       <find>.scatter(</find>
       <find>scatter(</find>
+      <find>all_facet_vals</find>
+      <find>groups_sort_by_value</find>
+      <find>_facet_plot</find>
+      <find>if groups_sort_by_value is not None:</find>
+      <find>groups_sort_by_value == &quot;median&quot;</find>
+      <find>facets_sort_by_value == &quot;median&quot;</find>
+      <find>.std()</find>
+      <find>barplot2</find>
+      <find>facets_sort_by_value</find>
+      <find>plot2</find>
     </findStrings>
     <replaceStrings>
       <replace>indices_sec</replace>
@@ -116,9 +115,9 @@
         <option value="$PROJECT_DIR$/publish instructions.txt" />
         <option value="$PROJECT_DIR$/.gitignore" />
         <option value="$PROJECT_DIR$/lmpylib/plots.py" />
-        <option value="$PROJECT_DIR$/lmpylib/version.py" />
-        <option value="$PROJECT_DIR$/lmpylib/core.py" />
         <option value="$PROJECT_DIR$/test.py" />
+        <option value="$PROJECT_DIR$/lmpylib/core.py" />
+        <option value="$PROJECT_DIR$/lmpylib/version.py" />
       </list>
     </option>
   </component>
@@ -198,7 +197,7 @@
     <frame x="0" y="23" width="1280" height="777" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.27786753" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.27786753" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -211,7 +210,7 @@
       <window_info anchor="bottom" id="Version Control" order="7" />
       <window_info anchor="bottom" id="Terminal" order="8" />
       <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
-      <window_info active="true" anchor="bottom" id="Python Console" order="10" visible="true" weight="0.4481752" />
+      <window_info anchor="bottom" id="Python Console" order="10" visible="true" weight="0.4481752" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -272,13 +271,6 @@
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
     <entry file="file://$PROJECT_DIR$/lmpylib/plots.py" />
-    <entry file="file://$PROJECT_DIR$/lmpylib/version.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <caret column="19" selection-start-column="19" selection-end-column="19" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/lmpylib/cv.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="150">
@@ -289,20 +281,27 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/lmpylib/core.py">
+    <entry file="file://$PROJECT_DIR$/test.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="128">
-          <caret line="1527" column="57" selection-end-line="2005" />
+        <state relative-caret-position="238">
+          <caret line="139" column="74" selection-start-line="139" selection-start-column="54" selection-end-line="139" selection-end-column="74" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/test.py">
+    <entry file="file://$PROJECT_DIR$/lmpylib/version.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="37">
-          <caret line="113" column="14" selection-start-line="113" selection-start-column="14" selection-end-line="113" selection-end-column="14" />
+        <state>
+          <caret column="19" selection-start-column="19" selection-end-column="19" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/lmpylib/core.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="104">
+          <caret line="1682" column="31" selection-start-line="1682" selection-start-column="31" selection-end-line="1682" selection-end-column="31" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
