@@ -16,7 +16,7 @@ barplot(data.month, sort_by="x", ascending=True)
 barplot(grpbyprodmonth, sort_by="x", ascending=True)
 barplot(grpbyprodmonth, group_by="month", sort_by="x", ascending=True, group_position="dodge")
 barplot(grpbyprodmonth, group_by="month", sort_by="x", ascending=True, group_position="dodge", groups_sort_by_value=False)
-barplot(grpbyprodmonth, group_by="prod_cat", sort_by="x", ascending=True)
+barplot(grpbyprodmonth, group_by="prod_cat", sort_by="x", ascending=True, color=["red", "orange", "yellow", "green", "cyan", "blue", "purple", "gray", "black", "pink", "brown", "navy"])
 barplot2(grpbymonthprod, sort_by="x", figure_inches=(5,2))
 barplot(grpbymonth, sort_by="x", ascending=True)
 barplot(x=grpbymonth.index.values, y=grpbymonth.po_1, sort_by="x", ascending=True)
@@ -32,6 +32,7 @@ barplot(data[["month", "po_1"]].groupby(["month"]).count(), sort_by="x", ascendi
 barplot(data[["mode", "po_1"]].groupby(["mode"]).count(), sort_by="x", ascending=False, horizontal=True)
 
 plot(grpbyprodmonth,x_scale_ticks=np.linspace(1,12,12), style="area")
+plot(grpbyprodmonth,x_scale_ticks=np.linspace(1,12,12), style="solid", alpha=0.9, group_by="prod_cat", color=["red", "orange", "yellow", "green", "cyan", "blue", "purple", "gray", "black", "pink", "brown", "navy"])
 
 plot(np.linspace(0.04, 0.283, 100), np.linspace(0.04, 0.283, 100)**2, color="green", marker_size=5, x_scale_rotation=90, style="point", show=True)
 plot(np.linspace(0.04, 0.283, 100), np.linspace(0.04, 0.283, 100), color="red", marker_size=5, x_scale_ticks=[0.04, 0.05, 0.07, 0.1, 0.15, 0.27, 0.283], x_scale_rotation=90, style="point")
@@ -46,8 +47,8 @@ barplot(x, group_by="dest", sort_by="y", ascending=False, x_scale_label_mapper=m
 barplot(grpbyprod, group_by="", x_scale_rotation=90, x_scale_label_mapper=month_lbls, sort_by="y", group_position="dodge")
 
 grpby3 = data.loc[data.dest.isin(["Plant", "DC", "CY", "Bonded Location"]) & data.dest_port.isin(["Manila", "Manila North Harbour", "Batangas Port"]), ["dest_port", "month", "dest", "po_1"]].groupby(["dest_port", "dest", "month"]).count()
-barplot2(grpby3, x_scale_rotation=0, title="xxxx", sort_by="y", subplots_ncol=2)
-plot2(grpby3, alpha=0.6, standardize_x_ticks_for_grouped_line_plots=True, width=3, style="stackarea", color=np.array(["red", "orange", "yellow", "green"]))
+barplot2(grpby3, x_scale_rotation=0, title="xxxx", sort_by="y", subplots_ncol=2, color=["red", "orange", "yellow", "green"], groups_sort_by_value=True, groups_ascending=True)
+plot2(grpby3, alpha=0.6, standardize_x_ticks_for_grouped_line_plots=True, width=3, style="point", color=np.array(["red", "orange", "yellow", "green"]))
 
 grpby3.loc["Bonded Locations",:]
 grpby3.index

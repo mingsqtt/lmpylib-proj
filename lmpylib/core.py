@@ -717,10 +717,11 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                         bottom = np.zeros(len(x_vals))
                         for grp, group_val in enumerate(group_vals):
                             grp_y_vals = df.iloc[:, grp + 1].values
+                            clr = color[grp] if (type(color) == list) or (type(color) == np.ndarray) else None
                             if horizontal:
-                                plots.append(ax.barh(x_ticks, grp_y_vals, width, left=bottom))
+                                plots.append(ax.barh(x_ticks, grp_y_vals, width, left=bottom, color=clr))
                             else:
-                                plots.append(ax.bar(x_ticks, grp_y_vals, width, bottom=bottom))
+                                plots.append(ax.bar(x_ticks, grp_y_vals, width, bottom=bottom, color=clr))
                             bottom = bottom + grp_y_vals
                         facet_max_y, facet_min_y = np.max(np.nanmax(df.accum_y.values), 0), np.min(
                             np.nanmin(df.accum_y.values), 0)
@@ -729,10 +730,11 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                         for grp, group_val in enumerate(group_vals):
                             x_ticks = _bar_ticks(len(x_vals), width, n_subbar=len(group_vals), i_subbar=grp)
                             grp_y_vals = df.iloc[:, grp + 1].values
+                            clr = color[grp] if (type(color) == list) or (type(color) == np.ndarray) else None
                             if horizontal:
-                                plots.append(ax.barh(x_ticks, grp_y_vals, width))
+                                plots.append(ax.barh(x_ticks, grp_y_vals, width, color=clr))
                             else:
-                                plots.append(ax.bar(x_ticks, grp_y_vals, width))
+                                plots.append(ax.bar(x_ticks, grp_y_vals, width, color=clr))
                         x_ticks = _bar_ticks(len(x_vals), width, n_subbar=len(group_vals))
                         facet_max_y, facet_min_y = np.max(np.nanmax(df.iloc[:, 1:-1]), 0), np.min(
                             np.nanmin(df.iloc[:, 1:-1]), 0)
@@ -769,20 +771,21 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                         grp_x_vals = df.loc[filt, "x"].values
                         grp_y_vals = df.loc[filt, y_col_name].values
                         grp_z_vals = df.loc[filt, z_col_name].values if len(x.dtypes) == 2 else None
+                        clr = color[grp] if (type(color) == list) or (type(color) == np.ndarray) else None
 
                         if (plot_type == "point") or (plot_type == "scatter"):
                             if grp_z_vals is not None:
-                                plots.append(ax.scatter(grp_x_vals, grp_y_vals, marker=marker, s=grp_z_vals,
+                                plots.append(ax.scatter(grp_x_vals, grp_y_vals, marker=marker, s=grp_z_vals, c=clr,
                                            alpha=0.3 if alpha is None else alpha))
                             else:
-                                plots.append(ax.scatter(grp_x_vals, grp_y_vals, marker=marker, s=marker_size,
+                                plots.append(ax.scatter(grp_x_vals, grp_y_vals, marker=marker, s=marker_size, c=clr,
                                            alpha=1 if alpha is None else alpha))
                         elif plot_type == "line":
-                            ax.plot(grp_x_vals, grp_y_vals, linewidth=width, linestyle=style,
+                            ax.plot(grp_x_vals, grp_y_vals, linewidth=width, linestyle=style, color=clr,
                                     marker=marker,
                                     markersize=marker_size, alpha=1 if alpha is None else alpha)
                         elif plot_type == "area":
-                            ax.fill_between(grp_x_vals.astype(float), grp_y_vals, alpha=1 if alpha is None else alpha)
+                            ax.fill_between(grp_x_vals.astype(float), grp_y_vals, color=clr, alpha=1 if alpha is None else alpha)
                         else:
                             raise Exception("plot type '{}' is not supported.".format(plot_type))
 
@@ -944,10 +947,11 @@ def _barplot_grouped(x, x_col, y_col, group_col, group_position, width, color, x
         bottom = np.zeros(len(x_vals))
         for grp, group_val in enumerate(group_vals):
             y_vals = df.iloc[:, grp + 1].values
+            clr = color[grp] if (type(color) == list) or (type(color) == np.ndarray) else None
             if horizontal:
-                plt.barh(x_ticks, y_vals, width, left=bottom, label=group_lbls[grp])
+                plt.barh(x_ticks, y_vals, width, left=bottom, label=group_lbls[grp], color=clr)
             else:
-                plt.bar(x_ticks, y_vals, width, bottom=bottom, label=group_lbls[grp])
+                plt.bar(x_ticks, y_vals, width, bottom=bottom, label=group_lbls[grp], color=clr)
             bottom = bottom + y_vals
         max_y = np.nanmax(df.y.values)
 
@@ -955,10 +959,11 @@ def _barplot_grouped(x, x_col, y_col, group_col, group_position, width, color, x
         for grp, group_val in enumerate(group_vals):
             x_ticks = _bar_ticks(len(x_vals), width, n_subbar=len(group_vals), i_subbar=grp)
             y_vals = df.iloc[:, grp + 1].values
+            clr = color[grp] if (type(color) == list) or (type(color) == np.ndarray) else None
             if horizontal:
-                plt.barh(x_ticks, y_vals, width, label=group_lbls[grp])
+                plt.barh(x_ticks, y_vals, width, label=group_lbls[grp], color=clr)
             else:
-                plt.bar(x_ticks, y_vals, width, label=group_lbls[grp])
+                plt.bar(x_ticks, y_vals, width, label=group_lbls[grp], color=clr)
         x_ticks = _bar_ticks(len(x_vals), width, n_subbar=len(group_vals))
         max_y = np.nanmax(df.iloc[:, 1:-1])
 
@@ -1420,16 +1425,19 @@ def plot(x, y=None, z=None, style="solid", width=1.5, color=None, marker=None, m
                 print("z value is not supported.")
 
             for grp, grp_col in enumerate(spread_df.columns.to_list()[1:]):
-                plt.fill_between(x_vals, spread_df[grp_col], label=group_lbls[grp], alpha=1 if alpha is None else alpha)
+                clr = color[grp] if (type(color) == list) or (type(color) == np.ndarray) else None
+                plt.fill_between(x_vals, spread_df[grp_col], color=clr, label=group_lbls[grp], alpha=1 if alpha is None else alpha)
         else:
             if z is None:
                 for grp, grp_col in enumerate(spread_df.columns.to_list()[1:]):
-                    plt.plot(x_vals, spread_df[grp_col], linewidth=width, linestyle=style, marker=marker,
+                    clr = color[grp] if (type(color) == list) or (type(color) == np.ndarray) else None
+                    plt.plot(x_vals, spread_df[grp_col], linewidth=width, linestyle=style, marker=marker, color=clr,
                              markersize=marker_size, label=group_lbls[grp], alpha=1 if alpha is None else alpha)
             else:
                 spread_df_z = spread(pd.DataFrame({"x": x_vals, "z": z, "grp": group_vals}), "grp", "z")
                 for grp, grp_col in enumerate(spread_df.columns.to_list()[1:]):
-                    plt.plot(x_vals, spread_df[grp_col], linewidth=spread_df_z.iloc[: grp + 1], linestyle=style,
+                    clr = color[grp] if (type(color) == list) or (type(color) == np.ndarray) else None
+                    plt.plot(x_vals, spread_df[grp_col], linewidth=spread_df_z.iloc[: grp + 1], linestyle=style, color=clr,
                              marker=marker,
                              markersize=marker_size, label=group_lbls[grp], alpha=1 if alpha is None else alpha)
 
@@ -1439,34 +1447,35 @@ def plot(x, y=None, z=None, style="solid", width=1.5, color=None, marker=None, m
         group_lbls = _try_map(unique_group_vals, group_label_mapper)
         for grp, grp_val in enumerate(unique_group_vals):
             grp_filter = group_vals == grp_val
+            clr = color[grp] if (type(color) == list) or (type(color) == np.ndarray) else None
             if (style == "point") or (style == "scatter"):
                 if type(z) == list:
-                    plt.scatter(x_vals[grp_filter], y_vals[grp_filter], marker=marker, s=np.array(z)[grp_filter],
+                    plt.scatter(x_vals[grp_filter], y_vals[grp_filter], marker=marker, s=np.array(z)[grp_filter], c=clr,
                                 label=group_lbls[grp], alpha=0.3 if alpha is None else alpha)
                 elif type(z) == np.ndarray:
-                    plt.scatter(x_vals[grp_filter], y_vals[grp_filter], marker=marker, s=z[grp_filter],
+                    plt.scatter(x_vals[grp_filter], y_vals[grp_filter], marker=marker, s=z[grp_filter], c=clr,
                                 label=group_lbls[grp], alpha=0.3 if alpha is None else alpha)
                 elif type(z) == pd.Series:
-                    plt.scatter(x_vals[grp_filter], y_vals[grp_filter], marker=marker, s=z.values[grp_filter],
+                    plt.scatter(x_vals[grp_filter], y_vals[grp_filter], marker=marker, s=z.values[grp_filter], c=clr,
                                 label=group_lbls[grp], alpha=0.3 if alpha is None else alpha)
                 else:
-                    plt.scatter(x_vals[grp_filter], y_vals[grp_filter], marker=marker, s=marker_size,
+                    plt.scatter(x_vals[grp_filter], y_vals[grp_filter], marker=marker, s=marker_size, c=clr,
                                 label=group_lbls[grp], alpha=1 if alpha is None else alpha)
             else:
                 if type(z) == list:
                     plt.plot(x_vals[grp_filter], y_vals[grp_filter], linewidth=np.array(z)[grp_filter], linestyle=style,
-                             marker=marker,
+                             color=clr, marker=marker,
                              markersize=marker_size, label=group_lbls[grp], alpha=1 if alpha is None else alpha)
                 elif type(z) == np.ndarray:
                     plt.plot(x_vals[grp_filter], y_vals[grp_filter], linewidth=z[grp_filter], linestyle=style,
-                             marker=marker,
+                             color=clr, marker=marker,
                              markersize=marker_size, label=group_lbls[grp], alpha=1 if alpha is None else alpha)
                 elif type(z) == pd.Series:
                     plt.plot(x_vals[grp_filter], y_vals[grp_filter], linewidth=z.values[grp_filter], linestyle=style,
-                             marker=marker,
+                             color=clr, marker=marker,
                              markersize=marker_size, label=group_lbls[grp], alpha=1 if alpha is None else alpha)
                 else:
-                    plt.plot(x_vals[grp_filter], y_vals[grp_filter], linewidth=width, linestyle=style, marker=marker,
+                    plt.plot(x_vals[grp_filter], y_vals[grp_filter], linewidth=width, linestyle=style, color=clr, marker=marker,
                              markersize=marker_size, label=group_lbls[grp], alpha=1 if alpha is None else alpha)
 
     if (type(x_scale_ticks) == list) or (type(x_scale_ticks) == np.ndarray):
