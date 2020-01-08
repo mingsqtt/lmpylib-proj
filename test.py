@@ -31,7 +31,7 @@ barplot(data[["month", "po_1"]].groupby(["month"]).count(), sort_by="x", ascendi
 barplot(data[["month", "po_1"]].groupby(["month"]).count(), sort_by="x", ascending=False, x_scale_label_mapper=month_lbls_map, horizontal=False, x_scale_rotation=45)
 barplot(data[["mode", "po_1"]].groupby(["mode"]).count(), sort_by="x", ascending=False, horizontal=True)
 
-plot(grpbyprodmonth,x_scale_ticks=np.linspace(1,12,12))
+plot(grpbyprodmonth,x_scale_ticks=np.linspace(1,12,12), style="area")
 
 plot(np.linspace(0.04, 0.283, 100), np.linspace(0.04, 0.283, 100)**2, color="green", marker_size=5, x_scale_rotation=90, style="point", show=True)
 plot(np.linspace(0.04, 0.283, 100), np.linspace(0.04, 0.283, 100), color="red", marker_size=5, x_scale_ticks=[0.04, 0.05, 0.07, 0.1, 0.15, 0.27, 0.283], x_scale_rotation=90, style="point")
@@ -47,7 +47,7 @@ barplot(grpbyprod, group_by="", x_scale_rotation=90, x_scale_label_mapper=month_
 
 grpby3 = data.loc[data.dest.isin(["Plant", "DC", "CY", "Bonded Location"]) & data.dest_port.isin(["Manila", "Manila North Harbour", "Batangas Port"]), ["dest_port", "month", "dest", "po_1"]].groupby(["dest_port", "dest", "month"]).count()
 barplot2(grpby3, x_scale_rotation=0, title="xxxx", sort_by="y", subplots_ncol=2)
-plot2(grpby3, alpha=0.6, standardize_x_ticks_for_grouped_line_plots=True, width=3)
+plot2(grpby3, alpha=0.6, standardize_x_ticks_for_grouped_line_plots=True, width=3, style="stackarea", color=np.array(["red", "orange", "yellow", "green"]))
 
 grpby3.loc["Bonded Locations",:]
 grpby3.index
@@ -138,3 +138,18 @@ top_importer_names = top_importer.index.values[:10]
 top_importer_bymonth = import_data.loc[import_data.carrier.isin(top_importer_names), ["po_1", "carrier", "month"]].groupby(["carrier", "month"]).count()#.sort_values("po_1", ascending=False)
 top_importer_bymonth = top_importer_bymonth.fillna(0)
 barplot2(top_importer_bymonth, y_scale_range="fixed", facets_sort_by_value="sd")
+
+x = np.linspace(1, 100, 100, dtype=int)
+a = np.linspace(1, 100, 100)**0.5
+b = np.log(np.linspace(1, 100, 100)*1.03)
+ab = a + b
+plt.plot(x, a)
+plt.plot(x, b)
+plt.stackplot(x, a, b, labels=["A", "B"], alpha=1, baseline="zero")
+plt.plot(x, ab, color="black", linestyle="dotted")
+
+plot(x, a, style="area", alpha=0.4)
+plot(gather(pd.DataFrame({"x":x, "2018":a, "2019":b}), key_col="year", value_col="amount", gather_cols=[1,2]).groupby(["year", "x"]).sum(), group_by="year", style="area", alpha=1)
+
+plt.stackplot(x, pd.DataFrame({"x":x, "2018":a, "2019":b}).iloc[:, 1:].values.transpose())
+

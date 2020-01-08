@@ -394,15 +394,27 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
         x_index = 1 if len(x.index[0]) == 2 else 2
         group_index = 1 if len(x.index[0]) == 3 else None
 
+        standardize_x_ticks = False
+        if (plot_type == "stackarea") or (plot_type == "bar"):
+            standardize_x_ticks = True
+        elif plot_type == "area":
+            standardize_x_ticks = True
+            if (group_index is not None) and ((alpha is None) or (alpha == 1)):
+                plot_type = "stackarea"
+                print(
+                    "Automatically changed plot type to 'stackarea'. Suppress this message by explicitly specifying the plot type as 'stackarea' or using <1 alpha value.")
+        elif (plot_type == "line"):
+            standardize_x_ticks = standardize_x_ticks_for_grouped_line_plots
+
         df_indices = x.index.values
 
         all_x_vals = [tup[x_index] for tup in df_indices]
         x_vals = pd.Series(all_x_vals).unique()
 
         all_y_vals = x.iloc[:, 0].values
-        global_max_y, global_min_y = None, None
-        max_y = np.max(np.nanmax(all_y_vals), 0)
-        min_y = np.min(np.nanmin(all_y_vals), 0)
+        global_max_accum_y, global_min_accum_y = None, None
+        global_max_y = np.max(np.nanmax(all_y_vals), 0)
+        global_min_y = np.min(np.nanmin(all_y_vals), 0)
 
         all_facet_vals = [tup[facet_index] for tup in df_indices]
         facet_vals = None
@@ -434,13 +446,13 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
         group_vals = None
         if group_index is not None:
             group_vals = pd.Series([tup[group_index] for tup in df_indices]).unique()
-            if plot_type == "bar":
+            if (plot_type == "bar") or (plot_type == "stackarea"):
                 temp = pd.DataFrame({
                     "f": all_facet_vals,
                     "x": all_x_vals,
                     "y": x.iloc[:, 0]}).groupby(["f", "x"]).sum()["y"]
-                global_max_y = np.max(np.nanmax(temp), 0)
-                global_min_y = np.min(np.nanmin(temp), 0)
+                global_max_accum_y = np.max(np.nanmax(temp), 0)
+                global_min_accum_y = np.min(np.nanmin(temp), 0)
 
         if subplots_ncol > len(facet_vals):
             subplots_ncol = len(facet_vals)
@@ -454,7 +466,8 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                 df_facet_spread.columns = ["x"] + ["y_{}".format(i) for i in range(len(facet_vals))]
             else:
                 df_facet_spread.columns = ["x"] + list(np.array([["y_{}".format(i), "z_{}".format(i)] for i in range(len(facet_vals))]).flatten())
-            if (plot_type == "bar") or ((plot_type == "line") and standardize_x_ticks_for_grouped_line_plots):
+
+            if standardize_x_ticks:
                 df_facet_spread.iloc[:, 1:] = df_facet_spread.iloc[:, 1:].fillna(0).values
         else:
             df_facet_spread = cartesian_dataframe(pd.DataFrame({"group": group_vals}), pd.DataFrame({"x": x_vals}))
@@ -465,7 +478,8 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                 df_facet_spread.columns = ["group", "x"] + ["f_{}".format(i) for i in range(len(facet_vals))]
             else:
                 df_facet_spread.columns = ["group", "x"] + list(np.array([["f_{}".format(i), "fz_{}".format(i)] for i in range(len(facet_vals))]).flatten())
-            if (plot_type == "bar") or ((plot_type == "line") and standardize_x_ticks_for_grouped_line_plots):
+
+            if standardize_x_ticks:
                 df_facet_spread.iloc[:, 2:] = df_facet_spread.iloc[:, 2:].fillna(0).values
 
         fig, axes = plt.subplots(subplot_nrow, subplots_ncol)
@@ -572,6 +586,10 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                         ax.plot(facet_x_vals, facet_y_vals, linewidth=width, linestyle=style, color=color,
                                 marker=marker,
                                 markersize=marker_size, alpha=1 if alpha is None else alpha)
+                    elif plot_type == "area":
+                        ax.fill_between(facet_x_vals.astype(float), facet_y_vals, color=color, alpha=1 if alpha is None else alpha)
+                    else:
+                        raise Exception("plot type '{}' not supported".format(plot_type))
 
                     x_ticks = ax.get_xticks()
                     x_labels = x_ticks
@@ -583,14 +601,14 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                         if (type(y_scale_range) == tuple) or (type(y_scale_range) == list):
                             ax.set_xlim([y_scale_range[0], y_scale_range[1]])
                         elif (type(y_scale_range) == str) and (y_scale_range == "fixed"):
-                            ax.set_xlim([min_y * 1.05, max_y * 1.05])
+                            ax.set_xlim([global_min_y * 1.05, global_max_y * 1.05])
                         elif (type(y_scale_range) == int) or (type(y_scale_range) == float):
                             ax.set_xlim([0, y_scale_range])
                     else:
                         if (type(y_scale_range) == tuple) or (type(y_scale_range) == list):
                             ax.set_ylim([y_scale_range[0], y_scale_range[1]])
                         elif (type(y_scale_range) == str) and (y_scale_range == "fixed"):
-                            ax.set_ylim([min_y * 1.05, max_y * 1.05])
+                            ax.set_ylim([global_min_y * 1.05, global_max_y * 1.05])
                         elif (type(y_scale_range) == int) or (type(y_scale_range) == float):
                             ax.set_ylim([0, y_scale_range])
 
@@ -678,15 +696,18 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                                       how="left", left_on="x", right_on="x")
                     df.columns = ["x"] + list(
                         np.array([["y_{}".format(g), "z_{}".format(g)] for g in range(len(group_vals))]).flatten())
-                if (plot_type == "bar") or ((plot_type == "line") and standardize_x_ticks_for_grouped_line_plots):
+                if standardize_x_ticks:
                     df.iloc[:, 1:] = df.iloc[:, 1:].fillna(0)
-                df["y"] = df.apply(lambda r: np.nansum(r[1::len(x.dtypes)]), axis=1).values
+                df["accum_y"] = df.apply(lambda r: np.nansum(r[1::len(x.dtypes)]), axis=1).values
 
                 facet_max_y, facet_min_y = None, None
 
                 if plot_type == "bar":
+                    if len(x.dtypes) > 1:
+                        raise Exception("z value is not supported for bar plot.")
+
                     if sort_by != "":
-                        df = df.sort_values(by="y" if sort_by == "count" else "x", ascending=ascending)
+                        df = df.sort_values(by="accum_y" if sort_by == "count" else "x", ascending=ascending)
                         x_vals = df.x.values
 
                     x_labels = _try_map(x_vals, x_scale_label_mapper)
@@ -701,7 +722,8 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                             else:
                                 plots.append(ax.bar(x_ticks, grp_y_vals, width, bottom=bottom))
                             bottom = bottom + grp_y_vals
-                        facet_max_y, facet_min_y = np.max(np.nanmax(df.y.values), 0), np.min(np.nanmin(df.y.values), 0)
+                        facet_max_y, facet_min_y = np.max(np.nanmax(df.accum_y.values), 0), np.min(
+                            np.nanmin(df.accum_y.values), 0)
 
                     elif style == "dodge":
                         for grp, group_val in enumerate(group_vals):
@@ -714,6 +736,30 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                         x_ticks = _bar_ticks(len(x_vals), width, n_subbar=len(group_vals))
                         facet_max_y, facet_min_y = np.max(np.nanmax(df.iloc[:, 1:-1]), 0), np.min(
                             np.nanmin(df.iloc[:, 1:-1]), 0)
+
+                elif plot_type == "stackarea":
+                    if len(x.dtypes) > 1:
+                        raise Exception("z value is not supported for stackarea plot.")
+
+                    grp_x_vals = df.x.values
+                    grp_y_vals = df.iloc[:, 1:-1].values.transpose()
+
+                    if color is not None:
+                        if type(color) == str:
+                            ax.stackplot(grp_x_vals.astype(float), grp_y_vals, alpha=1 if alpha is None else alpha)
+                            ax.plot(grp_x_vals, df.accum_y.values, color=color, linewidth=width, linestyle="dotted",
+                                    marker=marker,
+                                    markersize=marker_size, alpha=1 if alpha is None else alpha)
+                        elif (type(color) == list) or (type(color) == np.ndarray):
+                            ax.stackplot(grp_x_vals.astype(float), grp_y_vals, colors=color, alpha=1 if alpha is None else alpha)
+                    else:
+                        ax.stackplot(grp_x_vals.astype(float), grp_y_vals, alpha=1 if alpha is None else alpha)
+
+                    x_ticks = ax.get_xticks()
+                    x_labels = x_ticks
+                    facet_max_y, facet_min_y = np.max(np.nanmax(df.accum_y.values), 0), np.min(
+                        np.nanmin(df.accum_y.values), 0)
+
                 else:
                     df = df.sort_values(by="x", ascending=True)
                     for grp, group_val in enumerate(group_vals):
@@ -735,11 +781,15 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                             ax.plot(grp_x_vals, grp_y_vals, linewidth=width, linestyle=style,
                                     marker=marker,
                                     markersize=marker_size, alpha=1 if alpha is None else alpha)
+                        elif plot_type == "area":
+                            ax.fill_between(grp_x_vals.astype(float), grp_y_vals, alpha=1 if alpha is None else alpha)
+                        else:
+                            raise Exception("plot type '{}' is not supported.".format(plot_type))
 
                     x_ticks = ax.get_xticks()
                     x_labels = x_ticks
-                    facet_max_y, facet_min_y = np.max(np.nanmax(df.iloc[:, 1:-1]), 0), np.min(
-                        np.nanmin(df.iloc[:, 1:-1]), 0)
+                    facet_max_y, facet_min_y = np.max(np.nanmax(df.iloc[:, 1:-1:len(x.dtypes)]), 0), np.min(
+                        np.nanmin(df.iloc[:, 1:-1:len(x.dtypes)]), 0)
 
                 ax.set_xlabel(_try_map([facet], facet_label_mapper)[0])
 
@@ -748,20 +798,20 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                         if (type(y_scale_range) == tuple) or (type(y_scale_range) == list):
                             ax.set_xlim([y_scale_range[0], y_scale_range[1]])
                         elif (type(y_scale_range) == str) and (y_scale_range == "fixed"):
-                            if global_min_y is not None:
-                                ax.set_xlim([global_min_y * 1.05, global_max_y * 1.05])
+                            if global_min_accum_y is not None:
+                                ax.set_xlim([global_min_accum_y * 1.05, global_max_accum_y * 1.05])
                             else:
-                                ax.set_xlim([min_y * 1.05, max_y * 1.05])
+                                ax.set_xlim([global_min_y * 1.05, global_max_y * 1.05])
                         elif (type(y_scale_range) == int) or (type(y_scale_range) == float):
                             ax.set_xlim([0, y_scale_range])
                     else:
                         if (type(y_scale_range) == tuple) or (type(y_scale_range) == list):
                             ax.set_ylim([y_scale_range[0], y_scale_range[1]])
                         elif (type(y_scale_range) == str) and (y_scale_range == "fixed"):
-                            if global_min_y is not None:
-                                ax.set_ylim([global_min_y * 1.05, global_max_y * 1.05])
+                            if global_min_accum_y is not None:
+                                ax.set_ylim([global_min_accum_y * 1.05, global_max_accum_y * 1.05])
                             else:
-                                ax.set_ylim([min_y * 1.05, max_y * 1.05])
+                                ax.set_ylim([global_min_y * 1.05, global_max_y * 1.05])
                         elif (type(y_scale_range) == int) or (type(y_scale_range) == float):
                             ax.set_ylim([0, y_scale_range])
                 else:
@@ -1146,287 +1196,6 @@ def barplot2(x, width=0.5, color=None, xlab=None, ylab=None, title=None, sort_by
                 group_label_mapper=group_label_mapper,
                 legend_title=legend_title, legend_loc=legend_loc, show=show)
 
-    # if (sort_by != "") and (sort_by != "count") and (sort_by != "label") and (sort_by != "x") and (sort_by != "y"):
-    #     raise Exception("sort_by must be either 'count' or 'label' or 'x' or 'y'")
-    # if sort_by == "x":
-    #     sort_by = "label"
-    # if sort_by == "y":
-    #     sort_by = "count"
-    #
-    # if horizontal:
-    #     ascending = not ascending
-    #
-    # plt.style.use("ggplot")
-    #
-    # if (type(x) == pd.DataFrame) and (len(x.dtypes) == 1) and (type(x.index[0]) == tuple) and \
-    #         ((len(x.index[0]) == 2) or (len(x.index[0]) == 3)) and \
-    #         ((str(x.dtypes[0]).find("float") >= 0) or (str(x.dtypes[0]).find("int") >= 0)):
-    #
-    #     facet_index = 0
-    #     x_index = 1 if len(x.index[0]) == 2 else 2
-    #     group_index = 1 if len(x.index[0]) == 3 else None
-    #
-    #     df_indices = x.index.values
-    #     all_facet_vals = [tup[facet_index] for tup in df_indices]
-    #     facet_vals = pd.Series(all_facet_vals).unique()
-    #     all_x_vals = [tup[x_index] for tup in df_indices]
-    #     x_vals = pd.Series(all_x_vals).unique()
-    #     group_vals = None
-    #     global_max_y, global_min_y = None, None
-    #     if group_index is not None:
-    #         group_vals = pd.Series([tup[group_index] for tup in df_indices]).unique()
-    #         group_by_facet_x = pd.DataFrame({
-    #             "f": all_facet_vals,
-    #             "x": all_x_vals,
-    #             "y": x.iloc[:, 0]}).groupby(["f", "x"]).sum()["y"]
-    #         global_max_y = np.max(np.nanmax(group_by_facet_x), 0)
-    #         global_min_y = np.min(np.nanmin(group_by_facet_x), 0)
-    #
-    #     if subplots_ncol > len(facet_vals):
-    #         subplots_ncol = len(facet_vals)
-    #     subplot_nrow = int(math.ceil(len(facet_vals) / subplots_ncol))
-    #
-    #     if group_vals is None:
-    #         df_facet_spread = pd.DataFrame({"x": x_vals})
-    #         for i, facet in enumerate(facet_vals):
-    #             df_facet_spread = df_facet_spread.merge(x.loc[facet, :], how="left", left_on="x", right_index=True)
-    #         df_facet_spread.columns = ["x"] + ["y_{}".format(i) for i in range(len(facet_vals))]
-    #         df_facet_spread.iloc[:, 1:] = df_facet_spread.iloc[:, 1:].fillna(0).values
-    #     else:
-    #         df_facet_spread = cartesian_dataframe(pd.DataFrame({"group": group_vals}), pd.DataFrame({"x": x_vals}))
-    #         for i, facet in enumerate(facet_vals):
-    #             df_facet_spread = df_facet_spread.merge(x.loc[facet, :], how="left", left_on=["group", "x"], right_index=True)
-    #         df_facet_spread.columns = ["group", "x"] + ["f_{}".format(i) for i in range(len(facet_vals))]
-    #         df_facet_spread.iloc[:, 2:] = df_facet_spread.iloc[:, 2:].fillna(0).values
-    #
-    #     fig, axes = plt.subplots(subplot_nrow, subplots_ncol)
-    #     n_hidden_axes = subplot_nrow*subplots_ncol % len(facet_vals)
-    #     if (n_hidden_axes > 0) and (subplot_nrow > 1):
-    #         for hid in range(subplots_ncol-n_hidden_axes, subplots_ncol):
-    #             axes[-1, hid].axis("off")
-    #
-    #     if subplots_adjust is not None:
-    #         plt.subplots_adjust(top=subplots_adjust[0], bottom=subplots_adjust[1], hspace=subplots_adjust[2],
-    #                             wspace=subplots_adjust[3])
-    #         subplots_adjust_top = subplots_adjust[0]
-    #         subplots_adjust_bottom = subplots_adjust[1]
-    #         subplots_adjust_hspace = subplots_adjust[2]
-    #         subplots_adjust_wspace = subplots_adjust[3]
-    #     else:
-    #         if subplots_adjust_top is not None:
-    #             plt.subplots_adjust(top=subplots_adjust_top)
-    #         if subplots_adjust_bottom is not None:
-    #             plt.subplots_adjust(bottom=subplots_adjust_bottom)
-    #         if subplots_adjust_hspace is not None:
-    #             plt.subplots_adjust(hspace=subplots_adjust_hspace)
-    #         if subplots_adjust_wspace is not None:
-    #             plt.subplots_adjust(wspace=subplots_adjust_wspace)
-    #
-    #     if figure_inches is not None:
-    #         fig.set_size_inches(figure_inches[0], figure_inches[1])
-    #     else:
-    #         if (title is not None) and (title != ""):
-    #             auto_size, new_top = auto_figure_size(subplots_ncol, subplot_nrow,
-    #                                           1,
-    #                                           subplots_adjust_bottom,
-    #                                           subplots_adjust_hspace,
-    #                                           subplots_adjust_wspace,
-    #                                           title_height=0.5, horizontal=horizontal)
-    #             plt.subplots_adjust(top=new_top)
-    #         else:
-    #             auto_size, _ = auto_figure_size(subplots_ncol, subplot_nrow,
-    #                                           subplots_adjust_top,
-    #                                           subplots_adjust_bottom,
-    #                                           subplots_adjust_hspace,
-    #                                           subplots_adjust_wspace, horizontal=horizontal)
-    #         fig.set_size_inches(auto_size[0], auto_size[1])
-    #
-    #     plots = list()
-    #     group_lbls = None
-    #     for i, facet in enumerate(facet_vals):
-    #         ax_row = int(i / subplots_ncol)
-    #         ax_col = i % subplots_ncol
-    #         ax = None
-    #         if (subplot_nrow > 1) and (subplots_ncol > 1):
-    #             ax = axes[ax_row, ax_col]
-    #         elif subplot_nrow == 1:
-    #             ax = axes[ax_col]
-    #         elif subplots_ncol == 1:
-    #             ax = axes[ax_row]
-    #
-    #         # without group
-    #         if group_index is None:
-    #             df = df_facet_spread.iloc[:, [0, i + 1]]
-    #
-    #             if sort_by != "":
-    #                 df = df.sort_values(by="y_{}".format(i) if sort_by == "count" else "x", ascending=ascending)
-    #             x_labels = _try_map(df.x, x_scale_label_mapper)
-    #
-    #             if horizontal:
-    #                 ax.barh(x_labels, df.iloc[:, 1], width, color=color)
-    #             else:
-    #                 ax.bar(x_labels, df.iloc[:, 1], width, color=color)
-    #
-    #             ax.set_xlabel(_try_map([facet], facet_label_mapper)[0])
-    #
-    #             if y_scale_range is not None:
-    #                 if horizontal:
-    #                     if (type(y_scale_range) == tuple) or (type(y_scale_range) == list):
-    #                         ax.set_xlim([y_scale_range[0], y_scale_range[1]])
-    #                     elif (type(y_scale_range) == str) and (y_scale_range == "fixed"):
-    #                         max_y = np.max(np.nanmax(x.iloc[:, 0].values), 0)
-    #                         min_y = np.min(np.nanmin(x.iloc[:, 0].values), 0)
-    #                         ax.set_xlim([min_y * 1.05, max_y * 1.05])
-    #                     else:
-    #                         ax.set_xlim([0, y_scale_range])
-    #                 else:
-    #                     if (type(y_scale_range) == tuple) or (type(y_scale_range) == list):
-    #                         ax.set_ylim([y_scale_range[0], y_scale_range[1]])
-    #                     elif (type(y_scale_range) == str) and (y_scale_range == "fixed"):
-    #                         max_y = np.max(np.nanmax(x.iloc[:, 0].values), 0)
-    #                         min_y = np.min(np.nanmin(x.iloc[:, 0].values), 0)
-    #                         ax.set_ylim([min_y * 1.05, max_y * 1.05])
-    #                     else:
-    #                         ax.set_ylim([0, y_scale_range])
-    #
-    #             if horizontal:
-    #                 if (ax_col == 0) or (sort_by == "count"):
-    #                     if (x_scale_rotation is not None) and (x_scale_rotation > 0):
-    #                         ax.set_yticklabels(x_labels, rotation=x_scale_rotation)
-    #                     else:
-    #                         ax.set_yticklabels(x_labels)
-    #                 else:
-    #                     ax.set_yticklabels([])
-    #             else:
-    #                 if (ax_row == subplot_nrow - 1) or (
-    #                         (ax_row == subplot_nrow - 2) and (ax_col >= (subplots_ncol - n_hidden_axes))) or \
-    #                         (sort_by == "count"):
-    #                     if (x_scale_rotation is not None) and (x_scale_rotation > 0):
-    #                         ax.set_xticklabels(x_labels, rotation=x_scale_rotation)
-    #                     else:
-    #                         ax.set_xticklabels(x_labels)
-    #                 else:
-    #                     ax.set_xticklabels([])
-    #
-    #         # with group
-    #         else:
-    #             df_current_facet = df_facet_spread.iloc[:, [0, 1, i + 2]]
-    #
-    #             if groups_sort_by_value is not None:
-    #                 if groups_sort_by_value:
-    #                     temp = df_current_facet.iloc[:, [2, 0]].groupby(by="group").sum().sort_values(by="f_{}".format(i),
-    #                                                                                                 ascending=groups_ascending)
-    #                     group_vals = temp.index.values
-    #                 else:
-    #                     group_vals = df_current_facet.iloc[:, 0].sort_values(ascending=groups_ascending).unique()
-    #             else:
-    #                 group_vals = df_current_facet.iloc[:, 0].unique()
-    #             group_lbls = _try_map(group_vals, group_label_mapper)
-    #
-    #             df = pd.DataFrame({"x": x_vals})
-    #             for group_val in group_vals:
-    #                 df = df.merge(df_current_facet.loc[df_current_facet["group"] == group_val, ["x", "f_{}".format(i)]], how="left", left_on="x", right_on="x")
-    #             df.columns = ["x"] + ["y_{}".format(g) for g in range(len(group_vals))]
-    #             df.iloc[:, 1:] = df.iloc[:, 1:].fillna(0)
-    #             df["y"] = df.apply(lambda r: np.sum(r[1:]), axis=1).values
-    #
-    #             if sort_by != "":
-    #                 df = df.sort_values(by="y" if sort_by == "count" else "x", ascending=ascending)
-    #                 x_vals = df.x.values
-    #
-    #             x_labels = _try_map(x_vals, x_scale_label_mapper)
-    #             x_ticks = []
-    #             max_y = None
-    #
-    #             if group_position == "stack":
-    #                 x_ticks = _bar_ticks(len(x_vals), width)
-    #                 bottom = np.zeros(len(x_vals))
-    #                 for grp, group_val in enumerate(group_vals):
-    #                     y_vals = df.iloc[:, grp + 1].values
-    #                     if horizontal:
-    #                         plots.append(ax.barh(x_ticks, y_vals, width, color=color, left=bottom))
-    #                     else:
-    #                         plots.append(ax.bar(x_ticks, y_vals, width, color=color, bottom=bottom))
-    #                     bottom = bottom + y_vals
-    #                 max_y = np.nanmax(df.y.values)
-    #
-    #             elif group_position == "dodge":
-    #                 for grp, group_val in enumerate(group_vals):
-    #                     x_ticks = _bar_ticks(len(x_vals), width, n_subbar=len(group_vals), i_subbar=grp)
-    #                     y_vals = df.iloc[:, grp + 1].values
-    #                     if horizontal:
-    #                         plots.append(ax.barh(x_ticks, y_vals, width, color=color))
-    #                     else:
-    #                         plots.append(ax.bar(x_ticks, y_vals, width, color=color))
-    #                 x_ticks = _bar_ticks(len(x_vals), width, n_subbar=len(group_vals))
-    #                 max_y = np.nanmax(df.iloc[:, 1:-1])
-    #
-    #             ax.set_xlabel(_try_map([facet], facet_label_mapper)[0])
-    #
-    #             if y_scale_range is not None:
-    #                 if horizontal:
-    #                     if (type(y_scale_range) == tuple) or (type(y_scale_range) == list):
-    #                         ax.set_xlim([y_scale_range[0], y_scale_range[1]])
-    #                     elif (type(y_scale_range) == str) and (y_scale_range == "fixed"):
-    #                         ax.set_xlim([global_min_y * 1.05, global_max_y * 1.05])
-    #                     else:
-    #                         ax.set_xlim([0, y_scale_range])
-    #                 else:
-    #                     if (type(y_scale_range) == tuple) or (type(y_scale_range) == list):
-    #                         ax.set_ylim([y_scale_range[0], y_scale_range[1]])
-    #                     elif (type(y_scale_range) == str) and (y_scale_range == "fixed"):
-    #                         ax.set_ylim([global_min_y * 1.05, global_max_y * 1.05])
-    #                     else:
-    #                         ax.set_ylim([0, y_scale_range])
-    #             else:
-    #                 if horizontal:
-    #                     ax.set_xlim([0, max_y * 1.05])
-    #                 else:
-    #                     ax.set_ylim([0, max_y * 1.05])
-    #
-    #             if horizontal:
-    #                 ax.set_yticks(x_ticks)
-    #                 if (ax_col == 0) or (sort_by == "count"):
-    #                     if (x_scale_rotation is not None) and (x_scale_rotation > 0):
-    #                         ax.set_yticklabels(x_labels, rotation=x_scale_rotation)
-    #                     else:
-    #                         ax.set_yticklabels(x_labels)
-    #                 else:
-    #                     ax.set_yticklabels([])
-    #             else:
-    #                 ax.set_xticks(x_ticks)
-    #                 if (ax_row == subplot_nrow - 1) or (
-    #                         (ax_row == subplot_nrow - 2) and (ax_col >= (subplots_ncol - n_hidden_axes))) or \
-    #                         (sort_by == "count"):
-    #                     if (x_scale_rotation is not None) and (x_scale_rotation > 0):
-    #                         ax.set_xticklabels(x_labels, rotation=x_scale_rotation)
-    #                     else:
-    #                         ax.set_xticklabels(x_labels)
-    #                 else:
-    #                     ax.set_xticklabels([])
-    #
-    #     if (group_index is not None) and (legend_loc is not None):
-    #         fig.legend(tuple(plots), tuple(group_lbls), title=legend_title, facecolor="white", loc=legend_loc, prop={'size': 10}, fontsize=8,
-    #                    ncol=1)
-    #
-    #     if xlab is not None:
-    #         if horizontal:
-    #             fig.text(0.04, 0.5, xlab, va='center', rotation='vertical')
-    #         else:
-    #             fig.text(0.5, 0.04, xlab, ha='center')
-    #     if ylab is not None:
-    #         if horizontal:
-    #             fig.text(0.5, 0.04, ylab, ha='center')
-    #         else:
-    #             fig.text(0.04, 0.5, ylab, va='center', rotation='vertical')
-    #     if title is not None:
-    #         fig.suptitle(title, size=16)
-    #     if show:
-    #         fig.show()
-    # else:
-    #     raise Exception(
-    #         "x must be a DataFrame with 1 numeric column, 2 indices (without group_by) or 3 indices (with group_by).")
-
 
 # supported x, y examples:
 # x_numeric_arr
@@ -1441,7 +1210,8 @@ def barplot2(x, width=0.5, color=None, xlab=None, ylab=None, title=None, sort_by
 # x_numeric_arr, y_numeric_arr, z_numeric_arr
 def plot(x, y=None, z=None, style="solid", width=1.5, color=None, marker=None, marker_size=None, alpha=None, xlab=None, ylab=None,
              title=None,
-             x_scale_ticks=None, x_scale_rotation=0, group_by=None, standardize_x_ticks_for_grouped_line_plots=False,
+             x_scale_ticks=None, x_scale_rotation=0, y_scale_ticks=None,
+             group_by=None, standardize_x_ticks_for_grouped_line_plots=False,
              group_label_mapper=None, legend_title=None,
              legend_loc="upper right", show=True):
     
@@ -1455,6 +1225,18 @@ def plot(x, y=None, z=None, style="solid", width=1.5, color=None, marker=None, m
         raise Exception("x and y must have the same length, but got {} and {}.".format(len(x), len(y)))
     if (z is not None) and (len(z) != len(x)):
         raise Exception("x and z must have the same length, but got {} and {}.".format(len(x), len(z)))
+
+    standardize_x_ticks = False
+    if (group_by is not None) and (group_by != ""):
+        if style == "stackarea":
+            standardize_x_ticks = True
+        elif style == "area":
+            standardize_x_ticks = True
+            if (alpha is None) or (alpha == 1):
+                style = "stackarea"
+                print("Automatically changed plot type to 'stackarea'. Suppress this message by explicitly specifying the plot type as 'stackarea' or using <1 alpha value.")
+        elif (style != "scatter") and (style != "point"):
+            standardize_x_ticks = standardize_x_ticks_for_grouped_line_plots
 
     if y is None:
         # if x is 1-D numeric data, (ignore grouping)
@@ -1583,6 +1365,7 @@ def plot(x, y=None, z=None, style="solid", width=1.5, color=None, marker=None, m
     else:
         raise Exception("Unsupported type {} for x, or {} for y".format(type(x), type(y)))
 
+    # no grouping
     if group_vals is None:
         if (style == "point") or (style == "scatter"):
             if z is not None:
@@ -1595,6 +1378,11 @@ def plot(x, y=None, z=None, style="solid", width=1.5, color=None, marker=None, m
                 plt.scatter(x_vals, y_vals, c=np.repeat(color, len(x_vals)), marker=marker, s=marker_size, alpha=1 if alpha is None else alpha)
             else:
                 plt.scatter(x_vals, y_vals, marker=marker, s=marker_size, alpha=1 if alpha is None else alpha)
+        elif style == "area":
+            if z is not None:
+                print("z value is not supported.")
+
+            plt.fill_between(x_vals, y_vals, color=color, alpha=1 if alpha is None else alpha)
         else:
             if z is not None:
                 plt.plot(x_vals, y_vals, linewidth=z, linestyle=style, color=color, marker=marker,
@@ -1602,21 +1390,50 @@ def plot(x, y=None, z=None, style="solid", width=1.5, color=None, marker=None, m
             else:
                 plt.plot(x_vals, y_vals, linewidth=width, linestyle=style, color=color, marker=marker,
                          markersize=marker_size, alpha=1 if alpha is None else alpha)
-    elif standardize_x_ticks_for_grouped_line_plots and ((style != "point") and (style != "scatter")):
+
+    # grouping with standardize_x_ticks (line, area, stackedarea)
+    elif standardize_x_ticks:
         spread_df, unique_group_vals = spread(pd.DataFrame({"x": x_vals, "y": y_vals, "grp": group_vals}), "grp", "y", return_group_values=True)
         x_vals = spread_df.x.values
         group_lbls = _try_map(unique_group_vals, group_label_mapper)
-        
-        if z is None:
+
+        if style == "stackarea":
+            if z is not None:
+                print("z value is not supported.")
+
+            if color is not None:
+                if type(color) == str:
+                    plt.stackplot(x_vals, spread_df.iloc[:, 1:].values.transpose(), labels=group_lbls,
+                                  alpha=1 if alpha is None else alpha)
+                    accumulated = spread_df.apply(lambda r: np.nansum(r[1:]), axis=1).values
+                    plt.plot(x_vals, accumulated, linewidth=width, linestyle="dotted", marker=marker,
+                             markersize=marker_size, color=color)
+                elif (type(color) == list) or (type(color) == np.ndarray):
+                    plt.stackplot(x_vals, spread_df.iloc[:, 1:].values.transpose(), colors=color, labels=group_lbls,
+                                  alpha=1 if alpha is None else alpha)
+            else:
+                plt.stackplot(x_vals, spread_df.iloc[:, 1:].values.transpose(), labels=group_lbls,
+                              alpha=1 if alpha is None else alpha)
+
+        elif style == "area":
+            if z is not None:
+                print("z value is not supported.")
+
             for grp, grp_col in enumerate(spread_df.columns.to_list()[1:]):
-                plt.plot(x_vals, spread_df[grp_col], linewidth=width, linestyle=style, marker=marker,
-                         markersize=marker_size, label=group_lbls[grp], alpha=1 if alpha is None else alpha)
+                plt.fill_between(x_vals, spread_df[grp_col], label=group_lbls[grp], alpha=1 if alpha is None else alpha)
         else:
-            spread_df_z = spread(pd.DataFrame({"x": x_vals, "z": z, "grp": group_vals}), "grp", "z")
-            for grp, grp_col in enumerate(spread_df.columns.to_list()[1:]):
-                plt.plot(x_vals, spread_df[grp_col], linewidth=spread_df_z.iloc[: grp + 1], linestyle=style,
-                         marker=marker,
-                         markersize=marker_size, label=group_lbls[grp], alpha=1 if alpha is None else alpha)
+            if z is None:
+                for grp, grp_col in enumerate(spread_df.columns.to_list()[1:]):
+                    plt.plot(x_vals, spread_df[grp_col], linewidth=width, linestyle=style, marker=marker,
+                             markersize=marker_size, label=group_lbls[grp], alpha=1 if alpha is None else alpha)
+            else:
+                spread_df_z = spread(pd.DataFrame({"x": x_vals, "z": z, "grp": group_vals}), "grp", "z")
+                for grp, grp_col in enumerate(spread_df.columns.to_list()[1:]):
+                    plt.plot(x_vals, spread_df[grp_col], linewidth=spread_df_z.iloc[: grp + 1], linestyle=style,
+                             marker=marker,
+                             markersize=marker_size, label=group_lbls[grp], alpha=1 if alpha is None else alpha)
+
+    # grouping without standardize_x_ticks (line, point)
     else:
         unique_group_vals = pd.Series(group_vals).unique()
         group_lbls = _try_map(unique_group_vals, group_label_mapper)
@@ -1661,6 +1478,15 @@ def plot(x, y=None, z=None, style="solid", width=1.5, color=None, marker=None, m
     elif type(x_scale_ticks) == dict:
         plt.xticks(list(x_scale_ticks.keys()), list(x_scale_ticks.values()))
 
+    if (type(y_scale_ticks) == list) or (type(y_scale_ticks) == np.ndarray):
+        if _is_numeric_array(y_scale_ticks, consider_datetime=True):
+            plt.yticks(y_scale_ticks, y_scale_ticks)
+        else:
+            tick_vals = np.linspace(np.min(y_vals), np.max(y_vals), len(y_scale_ticks), dtype=y_vals.dtype)
+            plt.yticks(tick_vals, y_scale_ticks)
+    elif type(y_scale_ticks) == dict:
+        plt.yticks(list(y_scale_ticks.keys()), list(y_scale_ticks.values()))
+
     if x_scale_rotation > 0:
         plt.xticks(rotation=x_scale_rotation)
 
@@ -1686,7 +1512,11 @@ def plot2(x, style="solid", width=1.5, color=None, marker=None, marker_size=None
               group_label_mapper=None, legend_title=None,
               legend_loc="upper right", show=True):
 
-    plot_type = "line" if (style != "scatter") and (style != "point") else style
+    plot_type = "line"
+    if (style == "scatter") or (style == "point") or (style == "area") or (style == "stackarea"):
+        plot_type = style
+        style = None
+
     _facet_plot(x, plot_type, style=style, width=width, color=color, marker=marker, marker_size=marker_size,
                 alpha=alpha, xlab=xlab,
                 ylab=ylab, title=title,
