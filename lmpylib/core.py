@@ -1936,3 +1936,77 @@ def iqr_outliers(arr, multiplier=1.5, upper_only=False, return_filter=False, ret
         return np.argwhere(filt == False).flatten() if return_reversed else np.argwhere(filt).flatten()
     else:
         return arr0[filt == False] if return_reversed else arr0[filt]
+
+
+def create_one_hot(df, categorical_col, col_name_format=None, levels_mapper="smart", dtype=None):
+    if (type(categorical_col) == str) and (np.sum(df.columns.values == categorical_col) == 0):
+        raise Exception("{} has to be a dataframe's column name or column index")
+    if type(categorical_col) == int:
+        if categorical_col < len(df.columns.values):
+            categorical_col = df.columns.values[categorical_col]
+        else:
+            raise Exception("{} has to be a dataframe's column name or column index")
+    elif (type(categorical_col) == list) or (type(categorical_col) == np.ndarray):
+        if (col_name_format is not None) and (len(col_name_format) != len(categorical_col)):
+            raise Exception("col_name_format must be a list and have same length as categorical_col")
+        for c, col in enumerate(categorical_col):
+            df = create_one_hot(df, col, col_name_format=col_name_format[c] if col_name_format is not None else None,
+                                levels_mapper=levels_mapper, dtype=dtype)
+        return df
+
+    arr = df[categorical_col].values
+
+    levels = levels_mapper
+    if type(arr) == pd.core.arrays.categorical.Categorical:
+        if arr.ordered:
+            print("Not recommended to create one-hot encoding for ordered categorical variable.")
+        if levels is None:
+            levels = arr.values.categories.values
+    elif levels is None:
+        levels = df[categorical_col].unique()
+    elif levels == "smart":
+        uniq_vals = df[categorical_col].unique()
+        if (type(uniq_vals[0]) == str) or (type(levels[len(uniq_vals) - 1]) == str):
+            levels = {}
+            used_names = set()
+            for val in uniq_vals:
+                for suffix in [""] + ["_" + str(i) for i in range(1, 99)]:
+                    if pd.isna(val):
+                        name = "None{}".format(suffix)
+                    elif val.find(" ") > 0:
+                        name = "{}{}".format("".join([sub[:1] for sub in val.strip().split(" ")]), suffix)
+                    else:
+                        name = "{}{}".format(val[:8], suffix)
+                    if not used_names.__contains__(name):
+                        used_names.add(name)
+                        levels[val] = name
+                        break
+        else:
+            levels = uniq_vals
+
+    if col_name_format is None:
+        col_name_format = categorical_col + ".{}"
+
+    if type(levels) == dict:
+        for data_val in levels:
+            new_col = col_name_format.format(levels[data_val])
+            if pd.isna(data_val):
+                df[new_col] = pd.isna(arr)
+            else:
+                df[new_col] = arr == data_val
+            if dtype is not None:
+                df[new_col] = df[new_col].astype(dtype)
+    elif (type(levels) == list) or (type(levels) == np.ndarray):
+        for data_val in levels:
+            new_col = col_name_format.format(data_val)
+            if pd.isna(data_val):
+                df[new_col] = pd.isna(arr)
+            else:
+                df[new_col] = (arr == data_val)
+            if dtype is not None:
+                df[new_col] = df[new_col].astype(dtype)
+            if len(str(data_val)) > 8:
+                print(
+                    "One-hot encoded column name is too long. Consider using levels_mapper to map the long data value to a shorter code.")
+
+    return df
