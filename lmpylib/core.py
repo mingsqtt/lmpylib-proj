@@ -1949,10 +1949,12 @@ def create_one_hot(df, categorical_col, col_name_format=None, levels_mapper="sma
     elif (type(categorical_col) == list) or (type(categorical_col) == np.ndarray):
         if (col_name_format is not None) and (len(col_name_format) != len(categorical_col)):
             raise Exception("col_name_format must be a list and have same length as categorical_col")
+        all_new_col_indices = list()
         for c, col in enumerate(categorical_col):
-            df = create_one_hot(df, col, col_name_format=col_name_format[c] if col_name_format is not None else None,
-                                levels_mapper=levels_mapper, dtype=dtype)
-        return df
+            df, new_col_indices = create_one_hot(df, col, col_name_format=col_name_format[
+                c] if col_name_format is not None else None, levels_mapper=levels_mapper, dtype=dtype)
+            all_new_col_indices.append(new_col_indices)
+        return df, all_new_col_indices
 
     arr = df[categorical_col].values
 
@@ -1987,6 +1989,7 @@ def create_one_hot(df, categorical_col, col_name_format=None, levels_mapper="sma
     if col_name_format is None:
         col_name_format = categorical_col + ".{}"
 
+    new_col_indices = {}
     if type(levels) == dict:
         for data_val in levels:
             new_col = col_name_format.format(levels[data_val])
@@ -1996,6 +1999,7 @@ def create_one_hot(df, categorical_col, col_name_format=None, levels_mapper="sma
                 df[new_col] = arr == data_val
             if dtype is not None:
                 df[new_col] = df[new_col].astype(dtype)
+            new_col_indices[new_col] = np.argwhere(df.columns.values == new_col)[0][0]
     elif (type(levels) == list) or (type(levels) == np.ndarray):
         for data_val in levels:
             new_col = col_name_format.format(data_val)
@@ -2005,8 +2009,9 @@ def create_one_hot(df, categorical_col, col_name_format=None, levels_mapper="sma
                 df[new_col] = (arr == data_val)
             if dtype is not None:
                 df[new_col] = df[new_col].astype(dtype)
+            new_col_indices[new_col] = np.argwhere(df.columns.values == new_col)[0][0]
             if len(str(data_val)) > 8:
                 print(
                     "One-hot encoded column name is too long. Consider using levels_mapper to map the long data value to a shorter code.")
 
-    return df
+    return df, new_col_indices
