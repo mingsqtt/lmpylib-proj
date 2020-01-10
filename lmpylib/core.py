@@ -1906,3 +1906,33 @@ def create_datetime_features(datetime_arr, df, col_name_prefix, year=True, month
 
     return df
 
+
+def iqr(arr):
+    q1 = np.nanquantile(arr, 0.25)
+    q3 = np.nanquantile(arr, 0.75)
+    return q3 - q1
+
+
+def iqr_outliers(arr, multiplier=1.5, upper_only=False, return_filter=False, return_indices=False,
+                 return_reversed=False):
+    q1 = np.nanquantile(arr, 0.25)
+    q3 = np.nanquantile(arr, 0.75)
+    if type(arr) == list:
+        arr0 = np.array(arr)
+    elif type(arr) == np.ndarray:
+        arr0 = arr
+    elif type(arr) == pd.Series:
+        arr0 = arr.values
+    else:
+        raise Exception("{} type not supported".format(type(arr)))
+    if upper_only:
+        filt = arr0 > q3 + (q3 - q1) * multiplier
+    else:
+        filt = (arr0 > q3 + (q3 - q1) * multiplier) | (arr0 < q1 - (q3 - q1) * multiplier)
+
+    if return_filter:
+        return filt == False if return_reversed else filt
+    elif return_indices:
+        return np.argwhere(filt == False).flatten() if return_reversed else np.argwhere(filt).flatten()
+    else:
+        return arr0[filt == False] if return_reversed else arr0[filt]
