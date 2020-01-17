@@ -1662,9 +1662,10 @@ def gather(df, key_col, value_col, gather_cols, create_new_index=True):
     key_col_idx = len(df_gathered.columns) - 2
     value_col_idx = len(df_gathered.columns) - 1
 
+    copy_template = df_gathered.copy()
     for c in range(len(gather_cols)):
         if c > 0:
-            df_gathered = pd.concat([df_gathered, df_gathered.copy()], ignore_index=create_new_index)
+            df_gathered = pd.concat([df_gathered, copy_template.copy()], ignore_index=create_new_index)
         row_from = c * len(df)
         row_to = (c + 1) * len(df)
         df_gathered.iloc[row_from:row_to, key_col_idx] = gather_cols[c]

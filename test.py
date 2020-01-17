@@ -154,3 +154,10 @@ plot(gather(pd.DataFrame({"x":x, "2018":a, "2019":b}), key_col="year", value_col
 
 plt.stackplot(x, pd.DataFrame({"x":x, "2018":a, "2019":b}).iloc[:, 1:].values.transpose())
 
+
+
+df = pd.read_csv("/Users/liming/OneDrive/My Documents/_Hauio/test_gather.csv")
+key_col = "UoM"
+value_col = "Vol"
+gather_cols = ["Container", "TEU", "Trip", "Job"]
+gather(df, "UoM", "Volume", ["Container", "TEU", "Trip", "Job"])
