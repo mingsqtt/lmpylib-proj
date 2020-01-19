@@ -1619,35 +1619,47 @@ def scatter2(x, z=None, normalize_z_range=(10, 255), color=None, marker=None, ma
                 legend_title=legend_title, legend_loc=legend_loc, show=show)
 
 
-def cartesian_array(arr1, arr2, dtype_of_ndarray_return=None, return_as_dataframe=False):
-    iter = itertools.product(arr1, arr2)
-    if return_as_dataframe:
-        name_1 = arr1.name if type(arr1) == pd.Series else "arr_1"
-        name_2 = arr2.name if type(arr2) == pd.Series else "arr_2"
-        list_1 = list()
-        list_2 = list()
+def cartesian_array(*arrays, dtype_of_ndarray_return=None, return_as_dataframe=False):
+    n_dim = len(arrays)
+    if n_dim > 1:
+        iter = itertools.product(*arrays)
+        tuples = list(iter)
+        if return_as_dataframe:
+            df_data = {}
+            for dim in range(n_dim):
+                col_name = arrays[dim].name if type(arrays[dim]) == pd.Series else "arr_{}".format(dim + 1)
+                df_data[col_name] = list()
 
-        out = np.empty(len(arr1) * len(arr2), dtype=dtype_of_ndarray_return)
-        for i, tup in enumerate(iter):
-            list_1.append(tup[0])
-            list_2.append(tup[1])
+            col_names = list(df_data.keys())
+            for i, tup in enumerate(tuples):
+                for dim in range(n_dim):
+                    df_data[col_names[dim]].append(tup[dim])
 
-        return pd.DataFrame({name_1: list_1, name_2: list_2})
-    elif dtype_of_ndarray_return is not None:
-        out = np.empty(len(arr1)*len(arr2), dtype=dtype_of_ndarray_return)
-        for i, tup in enumerate(iter):
-            out[i][0] = tup[0]
-            out[i][1] = tup[1]
-        return out.reshape(-1, 2)
+            return pd.DataFrame(df_data)
+        elif dtype_of_ndarray_return is not None:
+            out = np.empty(len(tuples)*n_dim, dtype=dtype_of_ndarray_return)
+            for i, tup in enumerate(tuples):
+                for dim in range(n_dim):
+                    out[i * n_dim + dim] = tup[dim]
+            return out.reshape(-1, n_dim)
+        else:
+            return tuples
     else:
-        return list(iter)
+        raise Exception("len(arrays) must be > 1")
 
 
-def cartesian_dataframe(df1, df2):
-    rows = itertools.product(df1.iterrows(), df2.iterrows())
+def cartesian_dataframe(*dataframes):
+    n_df = len(dataframes)
+    if n_df > 1:
+        df_left = dataframes[0]
+        for i in range(1, n_df):
+            df_right = dataframes[i]
+            rows = itertools.product(df_left.iterrows(), df_right.iterrows())
 
-    df = pd.DataFrame(left.append(right) for (_, left), (_, right) in rows)
-    return df.reset_index(drop=True)
+            df_left = pd.DataFrame(left.append(right) for (_, left), (_, right) in rows)
+        return df_left.reset_index(drop=True)
+    else:
+        raise Exception("len(dataframes) must be > 1")
 
 
 def gather(df, key_col, value_col, gather_cols, create_new_index=True):
@@ -2016,3 +2028,4 @@ def create_one_hot(df, categorical_col, col_name_format=None, levels_mapper="sma
                     "One-hot encoded column name is too long. Consider using levels_mapper to map the long data value to a shorter code.")
 
     return df, new_col_indices
+

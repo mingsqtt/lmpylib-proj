@@ -2,4 +2,4 @@ build/
 dist/
 lmpylib_mingsqtt.egg-info/
 data/
-test.py
+test*.py
