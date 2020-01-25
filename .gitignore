@@ -3,3 +3,4 @@ dist/
 lmpylib_mingsqtt.egg-info/
 data/
 test*.py
+__pycache__/
