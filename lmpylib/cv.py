@@ -1,46 +1,47 @@
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as pyplot
 import cv2
 import math
+import itertools
 
 
 def plt(img, brg_to_rgb=True, equalize=False):
-    plt.axis('off')
+    pyplot.axis('off')
     if np.size(img.shape) == 3:
         if brg_to_rgb:
             if equalize:
-                plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), vmin=0, vmax=255)
+                pyplot.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), vmin=0, vmax=255)
             else:
-                plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+                pyplot.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
         elif equalize:
-            plt.imshow(img, vmin=0, vmax=255)
+            pyplot.imshow(img, vmin=0, vmax=255)
         else:
-            plt.imshow(img)
+            pyplot.imshow(img)
     else:
-        plt.imshow(img, cmap="gray", vmin=0, vmax=255)
-    plt.show()
+        pyplot.imshow(img, cmap="gray", vmin=0, vmax=255)
+    pyplot.show()
 
 
 def hist(img, bins=50, bychannel=True):
     x_scales = [0, 50, 100, 150, 200, 255]
     if type(img) == list or np.size(img.shape) == 1:
-        plt.figure()
+        pyplot.figure()
         nimg = len(img)
         for ind, img0 in enumerate(img):
-            plt.subplot(math.ceil(nimg / 2), 2, ind+1)
-            plt.xticks(x_scales)
-            plt.yticks([])
-            plt.hist(img0.flatten(), bins=bins, color="gray", range=(0, 255))
+            pyplot.subplot(math.ceil(nimg / 2), 2, ind+1)
+            pyplot.xticks(x_scales)
+            pyplot.yticks([])
+            pyplot.hist(img0.flatten(), bins=bins, color="gray", range=(0, 255))
     elif np.size(img.shape) == 3 and bychannel:
-        plt.xticks(x_scales)
-        plt.yticks([])
-        plt.hist(img[:, :, 2].flatten(), bins=bins, color="red", alpha=0.4, range=(0, 255))
-        plt.hist(img[:, :, 1].flatten(), bins=bins, color="green", alpha=0.4, range=(0, 255))
-        plt.hist(img[:, :, 0].flatten(), bins=bins, color="#72aee6", alpha=0.4, range=(0, 255))
+        pyplot.xticks(x_scales)
+        pyplot.yticks([])
+        pyplot.hist(img[:, :, 2].flatten(), bins=bins, color="red", alpha=0.4, range=(0, 255))
+        pyplot.hist(img[:, :, 1].flatten(), bins=bins, color="green", alpha=0.4, range=(0, 255))
+        pyplot.hist(img[:, :, 0].flatten(), bins=bins, color="#72aee6", alpha=0.4, range=(0, 255))
     else:
-        plt.xticks(x_scales)
-        plt.yticks([])
-        plt.hist(img.flatten(), bins=bins, color="gray", range=(0, 255))
+        pyplot.xticks(x_scales)
+        pyplot.yticks([])
+        pyplot.hist(img.flatten(), bins=bins, color="gray", range=(0, 255))
 
 
 def shift(img, offset_shape, output_shape=None):
@@ -97,15 +98,15 @@ def reduce_size(img, max_height_or_width=500):
             return(img)
 
 
-def linear_comb_conv(img_patch, kernel):
+def linear_comb_filter(img_patch, kernel):
     return(np.sum(img_patch * kernel))
 
 
-def median_smooth_conv(img_patch, kernel):
+def median_smooth_filter(img_patch, kernel):
     return(np.median(img_patch))
 
 
-def _conv_channel(img_ch, kernel, conv_func, stripe, padding, padding_with, dtype):
+def _filter_channel(img_ch, kernel, filter_func, stripe, padding, padding_with, dtype):
     img_patch = np.zeros(kernel.shape, dtype)
     height = img_ch.shape[0]
     width = img_ch.shape[1]
@@ -127,7 +128,7 @@ def _conv_channel(img_ch, kernel, conv_func, stripe, padding, padding_with, dtyp
                         else:
                             img_patch[h0, w0] = padding_with
 
-                img_copy[h, w] = conv_func(img_patch, kernel)
+                img_copy[h, w] = filter_func(img_patch, kernel)
     elif padding.lower() == "valid":
         img_copy = np.zeros((int((height - kernel_height) / stripe) + 1, int((width - kernel_width) / stripe) + 1), dtype)
         for h_target, h_src in enumerate(range(kernel_height_offset[0], height - kernel_height_offset[1] + 1, stripe)):
@@ -142,21 +143,84 @@ def _conv_channel(img_ch, kernel, conv_func, stripe, padding, padding_with, dtyp
                         else:
                             img_patch[h0, w0] = padding_with
 
-                img_copy[h_target, w_target] = conv_func(img_patch, kernel)
+                img_copy[h_target, w_target] = filter_func(img_patch, kernel)
     else:
         print("Invalid padding")
     return (img_copy)
 
 
-def conv2D(img, kernel, conv_func=linear_comb_conv, stripe=1, padding="SAME", padding_with=0.0, normalize=False, dtype=np.int16):
-    img_out = None
+img_ch = np.linspace(0, 29, 30, dtype=np.uint8).reshape(6, 5)
+hor = _filter_channel_1D_linear_combine(img_ch, cv2.getGaussianKernel(3, 1).flatten(), 0, 1, "same", 0, np.float)
+ver = _filter_channel_1D_linear_combine(img_ch, cv2.getGaussianKernel(3, 1).flatten(), 1, 1, "same", 0, np.float)
+combine = hor*ver
+
+filter2D(img_ch, gaussian_kernal(3, 1))
+
+def _filter_channel_1D_linear_combine(img_ch, kernel_1D, axis, stripe, padding, padding_with, dtype):
+    height = img_ch.shape[0]
+    width = img_ch.shape[1]
+    kernel_len = len(kernel_1D)
+    kernel_len_offset = (int(kernel_len / 2), math.ceil(kernel_len / 2))
+    if padding.lower() == "same":
+        dot_with = np.zeros((width*height, kernel_len), dtype)
+        img_copy = np.zeros(img_ch.shape, dtype)
+        for h in range(0, height, stripe):
+            for w in range(0, width, stripe):
+
+                if axis == 0:
+                    start = w - kernel_len_offset[0]
+                    end = w + kernel_len_offset[1]
+                    dw = img_ch[h, max(start, 0):min(end, width)]
+                    if start < 0:
+                        dw = np.concatenate([np.repeat(padding_with, -start), dw])
+                    if end > width:
+                        dw = np.concatenate([dw, np.repeat(padding_with, end - width)])
+                    dot_with[h * width + w] = dw
+                elif axis == 1:
+                    start = h - kernel_len_offset[0]
+                    end = h + kernel_len_offset[1]
+                    dw = img_ch[max(start, 0):min(end, height), w].flatten()
+                    if start < 0:
+                        dw = np.concatenate([np.repeat(padding_with, -start), dw])
+                    if end > height:
+                        dw = np.concatenate([dw, np.repeat(padding_with, end - height)])
+                    dot_with[w * height + h] = dw
+                else:
+                    raise Exception("axis must be 0 or 1")
+
+        if axis == 0:
+            return dot_with.dot(kernel_1D).reshape(height, width)
+        elif axis == 1:
+            return dot_with.dot(kernel_1D).reshape(width, height).transpose()
+
+                # img_copy[h, w] = filter_func(img_patch, kernel_1D)
+    # elif padding.lower() == "valid":
+    #     img_copy = np.zeros((int((height - kernel_height) / stripe) + 1, int((width - kernel_width) / stripe) + 1), dtype)
+    #     for h_target, h_src in enumerate(range(kernel_height_offset[0], height - kernel_height_offset[1] + 1, stripe)):
+    #         for w_target, w_src in enumerate(range(kernel_width_offset[0], width - kernel_width_offset[1] + 1, stripe)):
+    #
+    #             for h0 in range(kernel_height):
+    #                 for w0 in range(kernel_width):
+    #                     img_h = h_src - kernel_height_offset[0] + h0
+    #                     img_w = w_src - kernel_width_offset[0] + w0
+    #                     if 0 <= img_h < height and 0 <= img_w < width:
+    #                         img_patch[h0, w0] = img_ch[img_h, img_w]
+    #                     else:
+    #                         img_patch[h0, w0] = padding_with
+    #
+    #             img_copy[h_target, w_target] = filter_func(img_patch, kernel_1D)
+    else:
+        print("Invalid padding")
+
+
+def filter2D(img, kernel, filter_func=linear_comb_filter, stripe=1, padding="SAME", padding_with=0.0, normalize=False, dtype=np.int16):
     if len(img.shape) == 2:
-        img_out = _conv_channel(img, kernel, conv_func, stripe, padding, padding_with, dtype)
+        img_out = _filter_channel(img, kernel, filter_func, stripe, padding, padding_with, dtype)
     elif len(img.shape) == 3:
         img_out = cv2.merge((
-            _conv_channel(img[:, :, 0], kernel, conv_func, stripe, padding, padding_with, dtype),
-            _conv_channel(img[:, :, 1], kernel, conv_func, stripe, padding, padding_with, dtype),
-            _conv_channel(img[:, :, 2], kernel, conv_func, stripe, padding, padding_with, dtype)))
+            _filter_channel(img[:, :, 0], kernel, filter_func, stripe, padding, padding_with, dtype),
+            _filter_channel(img[:, :, 1], kernel, filter_func, stripe, padding, padding_with, dtype),
+            _filter_channel(img[:, :, 2], kernel, filter_func, stripe, padding, padding_with, dtype)))
     else:
         print("Invalid shape for img")
         return(None)
@@ -168,11 +232,17 @@ def conv2D(img, kernel, conv_func=linear_comb_conv, stripe=1, padding="SAME", pa
 
 
 def median_blue(img, kernel_size=3):
-    return(conv2D(img, np.zeros((kernel_size, kernel_size)), conv_func=median_smooth_conv, dtype=np.uint8))
+    return(filter2D(img, np.zeros((kernel_size, kernel_size)), filter_func=median_smooth_filter, dtype=np.uint8))
 
 
 def mean_blue(img, kernel_size=3):
-    return(conv2D(img, np.ones((kernel_size, kernel_size)) / kernel_size**2, conv_func=linear_comb_conv, dtype=np.uint8))
+    return(filter2D(img, np.ones((kernel_size, kernel_size)) / kernel_size**2, filter_func=linear_comb_filter, dtype=np.uint8))
+
+
+def gaussian_kernal(size, sigma):
+    kernal1d = cv2.getGaussianKernel(size, sigma).flatten()
+    prod = np.array(list(itertools.product(kernal1d, kernal1d)))
+    return np.apply_along_axis(lambda tup: tup[0] * tup[1], 1, prod).reshape(size, size)
 
 
 def equalize_hist(img, bychannel=False):
