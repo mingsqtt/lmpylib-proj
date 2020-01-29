@@ -1792,7 +1792,7 @@ def create_datetime_features(datetime_arr, df, col_name_prefix, year=True, month
     datetime_obj_list = None
     date_obj_list = None
     if type(datetime_arr) == list:
-        is_date = (len(datetime_arr) > 0) and (type(datetime_arr[0]) == datetime.date)
+        is_date = (len(datetime_arr) > 0) and (str(type(datetime_arr[0])) == "<class 'datetime.date'>")
         datetime_obj_list = datetime_arr
         date_obj_list = datetime_obj_list
     elif (type(datetime_arr) == np.ndarray) or (type(datetime_arr) == pd.Series):

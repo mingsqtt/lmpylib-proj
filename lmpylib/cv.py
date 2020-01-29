@@ -98,6 +98,67 @@ def reduce_size(img, max_height_or_width=500):
             return(img)
 
 
+def down_sample(data, upto, gaussion_prefilter_size=(5,5), gaussion_prefilter_sigma=None):
+    old_shape = data.shape
+    n_dim = len(old_shape)
+    if (type(upto) == float) and (upto < 1.0):
+        if n_dim == 3:
+            percent = np.array([upto, upto, 1])
+        elif n_dim == 4:
+            percent = np.array([1, upto, upto, 1])
+        else:
+            percent = np.repeat(upto, n_dim)
+    elif (type(upto) == int) and (upto > 1):
+        max_side = np.max(np.array(old_shape))
+        if max_side > upto:
+            perc = upto / max_side
+            if n_dim == 3:
+                percent = np.array([perc, perc, 1])
+            elif n_dim == 4:
+                percent = np.array([1, perc, perc, 1])
+            else:
+                percent = np.repeat(perc, n_dim)
+        else:
+            return data
+    elif (type(upto) == tuple) and (len(upto) == n_dim):
+        percent = np.ones(n_dim)
+        for dim in range(n_dim):
+            if upto[dim] < 1.0:
+                percent[dim] = upto[dim]
+            elif old_shape[dim] > upto[dim]:
+                percent[dim] = upto[dim] / old_shape[dim]
+    else:
+        raise Exception("upto must be a percentage between (0, 1), or length integer, or size tuple.")
+
+    indices = np.indices(old_shape)
+    down_sampling_filter = np.ones(old_shape, dtype=np.bool)
+
+    below_half = percent <= 0.5
+    above_half = (percent > 0.5) & (percent < 1.0)
+    same_size = percent == 1.0
+    denominator = np.empty(n_dim)
+    denominator[below_half] = (np.round(1 / percent[below_half], 0)).astype(int)
+    denominator[above_half] = (np.round(1 / (1 - percent[above_half]), 0)).astype(int)
+    denominator[same_size] = 9999
+    remainder = (denominator / 2).astype(int)
+    new_shape = np.array(old_shape)
+    new_shape[below_half] = (np.ceil((np.array(old_shape) - remainder) / denominator)).astype(int)[below_half]
+    new_shape[above_half] = \
+    (np.array(old_shape) - (np.ceil((np.array(old_shape) - remainder) / denominator)).astype(int))[above_half]
+
+    for dim in range(n_dim):
+        if below_half[dim]:
+            down_sampling_filter = down_sampling_filter & (np.mod(indices[dim], denominator[dim]) == remainder[dim])
+        elif above_half[dim]:
+            down_sampling_filter = down_sampling_filter & (np.mod(indices[dim], denominator[dim]) != remainder[dim])
+
+    if (gaussion_prefilter_sigma is None) or (gaussion_prefilter_size is None):
+        return data[down_sampling_filter].reshape(new_shape)
+    else:
+        return cv2.GaussianBlur(data, ksize=gaussion_prefilter_size, sigmaX=gaussion_prefilter_sigma)[
+            down_sampling_filter].reshape(new_shape)
+
+
 def linear_comb_filter(img_patch, kernel):
     return(np.sum(img_patch * kernel))
 
@@ -149,12 +210,12 @@ def _filter_channel(img_ch, kernel, filter_func, stripe, padding, padding_with, 
     return (img_copy)
 
 
-img_ch = np.linspace(0, 29, 30, dtype=np.uint8).reshape(6, 5)
-hor = _filter_channel_1D_linear_combine(img_ch, cv2.getGaussianKernel(3, 1).flatten(), 0, 1, "same", 0, np.float)
-ver = _filter_channel_1D_linear_combine(img_ch, cv2.getGaussianKernel(3, 1).flatten(), 1, 1, "same", 0, np.float)
-combine = hor*ver
-
-filter2D(img_ch, gaussian_kernal(3, 1))
+# img_ch = np.linspace(0, 29, 30, dtype=np.uint8).reshape(6, 5)
+# hor = _filter_channel_1D_linear_combine(img_ch, cv2.getGaussianKernel(3, 1).flatten(), 0, 1, "same", 0, np.float)
+# ver = _filter_channel_1D_linear_combine(img_ch, cv2.getGaussianKernel(3, 1).flatten(), 1, 1, "same", 0, np.float)
+# combine = hor*ver
+#
+# filter2D(img_ch, gaussian_kernal(3, 1))
 
 def _filter_channel_1D_linear_combine(img_ch, kernel_1D, axis, stripe, padding, padding_with, dtype):
     height = img_ch.shape[0]
