@@ -65,6 +65,12 @@ def _summarize_numeric(data, as_rows=False):
 def _summarize_datetime(data, as_rows=False):
     without_na = np.array([val for val in data if (val is not None) and (not pd.isna(val))])
 
+    tz_info = None
+    if (type(data) == pd.Series) and (data.dt.tz is not None):
+        tz_info = data.dt.tz.localize(datetime.now()).tzinfo
+    elif (len(without_na) > 0) and (str(type(without_na[0])) == "<class 'datetime.datetime'>") and (without_na[0].tzinfo is not None):
+        tz_info = without_na[0].tzinfo.localize(datetime.now()).tzinfo
+
     if len(without_na) == 0:
         if as_rows:
             return pd.DataFrame({
@@ -82,13 +88,17 @@ def _summarize_datetime(data, as_rows=False):
             }, index=[""])
 
     without_na = without_na.astype("datetime64[ns]").astype(np.int64)
+    if tz_info is not None:
+        without_na = without_na + np.int64(tz_info._utcoffset.seconds*1e9)
     if as_rows:
         return pd.DataFrame({
             "Stats": [np.min(without_na).astype('datetime64[ns]'),
                       np.quantile(without_na, 0.25).astype('datetime64[ns]'),
-                      np.median(without_na).astype('datetime64[ns]'), np.mean(without_na).astype('datetime64[ns]'),
+                      np.median(without_na).astype('datetime64[ns]'),
+                      np.mean(without_na).astype('datetime64[ns]'),
                       np.quantile(without_na, 0.75).astype('datetime64[ns]'),
-                      np.max(without_na).astype('datetime64[ns]'), len(data) - len(without_na)]},
+                      np.max(without_na).astype('datetime64[ns]'),
+                      len(data) - len(without_na)]},
             index=["Min", "Q1", "Median", "Mean", "Q3", "Max", "NA"])
     else:
         return pd.DataFrame({
