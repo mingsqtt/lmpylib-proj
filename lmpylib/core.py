@@ -10,6 +10,7 @@ import math
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
+import pytz
 
 
 def _summarize_categorical(data, include_na_only_if_exist=False, sort_by="count", ascending=True):
@@ -1780,40 +1781,58 @@ def nanmax(arr):
     return max_val
 
 
+def localize_datetime(datetime_arr, timezone):
+    if (timezone is not None) and (len(datetime_arr) > 0):
+        if ((type(datetime_arr) == list) or (type(datetime_arr) == np.ndarray)) and (str(type(datetime_arr[0])) == "<class 'datetime.datetime'>"):
+            tz = pytz.timezone(timezone)
+            return [tz.localize(dt) if dt is not None else None for dt in datetime_arr]
+        elif (type(datetime_arr) == pd.Series) and (str(datetime_arr.dtype) != "datetime64[D]"):
+            return datetime_arr.dt.tz_localize(timezone)
+        else:
+            return datetime_arr
+    else:
+        return datetime_arr
+
+
 def create_datetime_features(datetime_arr, df, col_name_prefix, year=True, month=True, day=True, wday=True,
                                  period=False, date_key=False,
                                  hour=True, minute=True, yday=True, yweek=False, month_sn=True, day_sn=True, week_sn=False,
-                                 hour_sn=False, round_to_nearest_nmin=[], categorize=True):
+                                 hour_sn=False, round_to_nearest_nmin=[], categorize=True, timezone="Asia/Kuala_Lumpur"):
     if df is None:
         df = pd.DataFrame({})
     elif type(datetime_arr) == str:
         datetime_arr = df[datetime_arr]
+
+    tz = pytz.timezone(timezone) if timezone is not None else None
 
     is_date = False
     datetime_obj_list = None
     date_obj_list = None
     if type(datetime_arr) == list:
         is_date = (len(datetime_arr) > 0) and (str(type(datetime_arr[0])) == "<class 'datetime.date'>")
-        datetime_obj_list = datetime_arr
+        if (timezone is not None) and (not is_date):
+            datetime_obj_list = localize_datetime(datetime_arr, timezone)
+        else:
+            datetime_obj_list = datetime_arr
         date_obj_list = datetime_obj_list
     elif (type(datetime_arr) == np.ndarray) or (type(datetime_arr) == pd.Series):
         if type(datetime_arr) == pd.Series:
-            datetime_obj_list = datetime_arr.values
+            datetime_obj_list = localize_datetime(datetime_arr, timezone).values
         else:
-            datetime_obj_list = datetime_arr
+            datetime_obj_list = localize_datetime(datetime_arr, timezone)
 
-        if str(datetime_arr.dtype) == "datetime64[ns]":
-            datetime_obj_list = [datetime.fromtimestamp(ticks) if ticks is not None else None for ticks in
+        if str(datetime_arr.dtype).startswith("datetime64[ns"):
+            datetime_obj_list = [datetime.fromtimestamp(ticks, tz) if (ticks is not None) and (ticks > 0) else None for ticks in
                                  (datetime_obj_list.astype("int64") / 1e9).astype("float")]
-        elif str(datetime_obj_list.dtype) == "datetime64[ms]":
-            datetime_obj_list = [datetime.fromtimestamp(ticks) if ticks is not None else None for ticks in
+        elif str(datetime_obj_list.dtype).startswith("datetime64[ms"):
+            datetime_obj_list = [datetime.fromtimestamp(ticks, tz) if (ticks is not None) and (ticks > 0) else None for ticks in
                                  (datetime_obj_list.astype("int64") / 1e6).astype("float")]
-        elif str(datetime_obj_list.dtype) == "datetime64[s]":
-            datetime_obj_list = [datetime.fromtimestamp(ticks) if ticks is not None else None for ticks in
+        elif str(datetime_obj_list.dtype).startswith("datetime64[s"):
+            datetime_obj_list = [datetime.fromtimestamp(ticks, tz) if (ticks is not None) and (ticks > 0) else None for ticks in
                                  datetime_obj_list.astype("float")]
         elif str(datetime_obj_list.dtype) == "datetime64[D]":
             is_date = True
-            datetime_obj_list = [datetime.fromtimestamp(ticks).date() if ticks is not None else None for ticks in
+            datetime_obj_list = [datetime.fromtimestamp(ticks, tz).date() if (ticks is not None) and (ticks > 0) else None for ticks in
                                  datetime_obj_list.astype("datetime64[s]").astype("float")]
             date_obj_list = datetime_obj_list
     else:
@@ -1943,7 +1962,7 @@ def create_datetime_features(datetime_arr, df, col_name_prefix, year=True, month
                 col_name = col_name_prefix + str(nmin) + "mins"
 
             df[col_name] = [
-                datetime.fromtimestamp(round(dt.timestamp() / (nmin * 60)) * nmin * 60) if dt is not None else None for
+                datetime.fromtimestamp(round(dt.timestamp() / (nmin * 60)) * nmin * 60, tz) if dt is not None else None for
                 dt in datetime_obj_list]
 
     return df
