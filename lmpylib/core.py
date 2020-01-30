@@ -1781,8 +1781,9 @@ def nanmax(arr):
 
 
 def create_datetime_features(datetime_arr, df, col_name_prefix, year=True, month=True, day=True, wday=True,
-                                 hour=True, minute=True, yday=True, month_sn=True, day_sn=True, week_sn=False,
-                                 hour_sn=False, round_to_nearest_nmin=[]):
+                                 period=False, date_key=False,
+                                 hour=True, minute=True, yday=True, yweek=False, month_sn=True, day_sn=True, week_sn=False,
+                                 hour_sn=False, round_to_nearest_nmin=[], categorize=True):
     if df is None:
         df = pd.DataFrame({})
     elif type(datetime_arr) == str:
@@ -1829,57 +1830,87 @@ def create_datetime_features(datetime_arr, df, col_name_prefix, year=True, month
 
     if year:
         df[col_name_prefix + "year"] = transformed[:, 0]
-        df[col_name_prefix + "year"] = df[col_name_prefix + "year"].astype("category")
+        if categorize:
+            df[col_name_prefix + "year"] = df[col_name_prefix + "year"].astype("category")
 
     if month:
         df[col_name_prefix + "month"] = transformed[:, 1]
-        df[col_name_prefix + "month"] = pd.Categorical(df[col_name_prefix + "month"], categories=list(range(1, 13)),
+        if categorize:
+            df[col_name_prefix + "month"] = pd.Categorical(df[col_name_prefix + "month"], categories=list(range(1, 13)),
                                                        ordered=True)
 
     if day:
         df[col_name_prefix + "day"] = transformed[:, 2]
-        df[col_name_prefix + "day"] = pd.Categorical(df[col_name_prefix + "day"], categories=list(range(1, 32)),
+        if categorize:
+            df[col_name_prefix + "day"] = pd.Categorical(df[col_name_prefix + "day"], categories=list(range(1, 32)),
                                                      ordered=True)
 
     if wday:
         df[col_name_prefix + "wday"] = transformed[:, 3]
-        df[col_name_prefix + "wday"] = pd.Categorical(df[col_name_prefix + "wday"], categories=list(range(0, 7)),
+        if categorize:
+            df[col_name_prefix + "wday"] = pd.Categorical(df[col_name_prefix + "wday"], categories=list(range(0, 7)),
                                                       ordered=True)
+
+    if period:
+        filt = transformed[:, 0] != None
+        df.loc[filt, col_name_prefix + "period"] = transformed[filt, 0] * 100 + transformed[filt, 1]
+        if categorize:
+            comb = cartesian_array(pd.Series(transformed[filt, 0] * 100).sort_values().unique(), list(range(1, 13)))
+            levels = [tup[0] + tup[1] for tup in comb]
+            df[col_name_prefix + "period"] = pd.Categorical(df[col_name_prefix + "period"], categories=levels,
+                                                              ordered=True)
+
+    if date_key:
+        filt = (transformed[:, 0] != None) & (transformed[:, 1] != None)
+        df.loc[filt, col_name_prefix + "date_key"] = transformed[filt, 0] * 10000 + transformed[filt, 1] * 100 + transformed[filt, 2]
 
     if not is_date:
         if hour:
             df[col_name_prefix + "hour"] = transformed[:, 4]
-            df[col_name_prefix + "hour"] = pd.Categorical(df[col_name_prefix + "hour"], categories=list(range(0, 24)),
+            if categorize:
+                df[col_name_prefix + "hour"] = pd.Categorical(df[col_name_prefix + "hour"], categories=list(range(0, 24)),
                                                           ordered=True)
         if minute:
             df[col_name_prefix + "minute"] = transformed[:, 5]
-            df[col_name_prefix + "minute"] = pd.Categorical(df[col_name_prefix + "minute"], categories=list(range(0, 60)),
+            if categorize:
+                df[col_name_prefix + "minute"] = pd.Categorical(df[col_name_prefix + "minute"], categories=list(range(0, 60)),
                                                             ordered=True)
 
-    if yday:
+    if yday or yweek:
         first_day_of_years = {}
+        weekday_of_first_day_of_years = {}
         for yr in transformed[:, 0]:
             if (yr is not None) and (first_day_of_years.get(yr) is None):
                 first_day_of_years[yr] = datetime(yr, 1, 1).date()
-        df[col_name_prefix + "yday"] = [
+                weekday_of_first_day_of_years[yr] = first_day_of_years[yr].weekday()
+        yday_vals = np.array([
             (date_obj_list[i] - first_day_of_years[yr]).days if not pd.isna(yr) else None
+            for i, yr in enumerate(transformed[:, 0])])
+
+    if yday:
+        df[col_name_prefix + "yday"] = yday_vals
+        if categorize:
+            df[col_name_prefix + "yday"] = pd.Categorical(df[col_name_prefix + "yday"], categories=list(range(366)),
+                                                      ordered=True)
+
+    if yweek:
+        df[col_name_prefix + "yweek"] = [
+            int((yday_vals[i] + weekday_of_first_day_of_years[yr]) / 7) if not pd.isna(yr) else None
             for i, yr in enumerate(transformed[:, 0])]
-        df[col_name_prefix + "yday"] = pd.Categorical(df[col_name_prefix + "yday"], categories=list(range(366)),
+        if categorize:
+            df[col_name_prefix + "yweek"] = pd.Categorical(df[col_name_prefix + "yweek"], categories=list(range(53)),
                                                       ordered=True)
 
     if month_sn:
         filt = transformed[:, 0] != None
-        df.loc[filt, col_name_prefix + "month_sn"] = transformed[filt, 0] * 100 + transformed[filt, 1]
-        levels = cartesian_array(pd.Series(transformed[filt, 0] * 100).sort_values().unique(), list(range(1, 13)))
-        levels = [tup[0] + tup[1] for tup in levels]
-        df[col_name_prefix + "month_sn"] = pd.Categorical(df[col_name_prefix + "month_sn"], categories=levels,
-                                                          ordered=True)
+        n_months = transformed[filt, 0] * 12 + transformed[filt, 1]
+        n_months = n_months - np.min(n_months)
+        df.loc[filt, col_name_prefix + "month_sn"] = n_months
 
     if day_sn:
         first_date = nanmin(date_obj_list)
         df[col_name_prefix + "day_sn"] = [int((dt - first_date).days) if dt is not None else None for dt in
                                           date_obj_list]
-        # df[col_name_prefix + "day_sn"] = pd.Categorical(df[col_name_prefix + "day_sn"], categories=list(range(int(nanmax(df[col_name_prefix + "day_sn"])+1))), ordered=True)
 
     if week_sn:
         first_wday = nanmin(date_obj_list).weekday()
@@ -1891,14 +1922,12 @@ def create_datetime_features(datetime_arr, df, col_name_prefix, year=True, month
         else:
             df[col_name_prefix + "week_sn"] = [math.floor((daysn + first_wday) / 7) if not pd.isna(daysn) else None for
                                                daysn in df[col_name_prefix + "day_sn"].values]
-        # df[col_name_prefix + "week_sn"] = pd.Categorical(df[col_name_prefix + "week_sn"], categories=list(range(int(nanmax(df[col_name_prefix + "week_sn"])+1))), ordered=True)
 
     if hour_sn and (not is_date):
         first_time = nanmin(datetime_obj_list)
         first_time = datetime(first_time.year, first_time.month, first_time.day, first_time.hour, 0, 0)
         df[col_name_prefix + "hour_sn"] = [int((dt - first_time).total_seconds() / 3600) if dt is not None else None for
                                            dt in datetime_obj_list]
-        # df[col_name_prefix + "hour_sn"] = pd.Categorical(df[col_name_prefix + "hour_sn"], categories=list(range(int(nanmax(df[col_name_prefix + "hour_sn"])+1))), ordered=True)
 
     if (round_to_nearest_nmin is not None) and (not is_date):
         for nmin in round_to_nearest_nmin:
