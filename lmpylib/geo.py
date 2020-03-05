@@ -2,6 +2,10 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib import colors
+import matplotlib
+from matplotlib.patches import Polygon
+from mpl_toolkits.basemap import Basemap
+from matplotlib.collections import PatchCollection
 from landez import ImageExporter
 from landez.filters import GrayScale
 from landez.sources import MBTilesReader
@@ -66,48 +70,52 @@ def trajectory(lat, lng, trip_id=None, max_sample=100, line_style="solid", line_
         plt.show()
 
 
-trn = np.array([[1.340116, 103.694897],
-[1.338571, 103.695541],
-[1.334882, 103.696442],
-[1.334839, 103.698974],
-[1.337670, 103.698760],
-[1.341618, 103.696185],
-[1.340674, 103.694253],
-[1.345436, 103.690777]])
 
-trn = np.insert(trn, 1, np.array([np.random.normal(trn[0, 0], 0.0001, 3), np.random.normal(trn[0, 1], 0.0001, 3)]).transpose(), axis=0)
-print(len(trn))
-trn = np.insert(trn, 8, np.array([np.random.normal(trn[7, 0], 0.0002, 2), np.random.normal(trn[7, 1], 0.0002, 2)]).transpose(), axis=0)
-print(len(trn))
-trn = np.insert(trn, len(trn)-1, np.array([np.random.normal(trn[len(trn)-1, 0], 0.0001, 100), np.random.normal(trn[len(trn)-1, 1], 0.0001, 100)]).transpose(), axis=0)
-print(len(trn))
+basemap = Basemap(llcrnrlon= 75,llcrnrlat=10,urcrnrlon=150,urcrnrlat=55,projection='poly',lon_0 = 116.65,lat_0 = 40.02,ax = ax)
 
-# trn = np.array([[1.340116, 103.694897], [1.340674, 103.694253]])
-trip_id = [1]*7 + [2]*106
-trajectory(trn[:, 0], trn[:, 1], trip_id, mark_od=True, max_sample=0)
-
-gmap3 = gmplot.GoogleMapPlotter(1.34, 103.69, 13)
-
-ie = ImageExporter(mbtiles_file="/Users/liming/Downloads/2017-07-03_asia_malaysia-singapore-brunei.mbtiles")
-ie.add_filter(GrayScale())
-ie.export_image(bbox=(103.59, 1.201, 104.05, 1.49), zoomlevel=5, imagepath="map0.png")
-
-from io import BytesIO, StringIO
-from PIL.Image import ID, OPEN
-import logging
-logging.basicConfig(level=logging.DEBUG)
-mbreader = MBTilesReader("/Users/liming/Downloads/2017-07-03_asia_malaysia-singapore-brunei.mbtiles")
-grid = ie.grid_tiles((103.59, 1.201, 104.05, 1.49), 3)
-data = mbreader.tile(3, 6, 3)
-
-with open('tile.txt', 'wb') as out:
-    out.write(data)
-
-fp = BytesIO(data)
-prefix = fp.read(16)
-factory, accept = OPEN["JPEG"]
-accept(prefix)
-ID
-OPEN
-Image.open(fp)
-data = ie._tile_image(ie.tile((3, 6, 3)))
+#
+# trn = np.array([[1.340116, 103.694897],
+# [1.338571, 103.695541],
+# [1.334882, 103.696442],
+# [1.334839, 103.698974],
+# [1.337670, 103.698760],
+# [1.341618, 103.696185],
+# [1.340674, 103.694253],
+# [1.345436, 103.690777]])
+#
+# trn = np.insert(trn, 1, np.array([np.random.normal(trn[0, 0], 0.0001, 3), np.random.normal(trn[0, 1], 0.0001, 3)]).transpose(), axis=0)
+# print(len(trn))
+# trn = np.insert(trn, 8, np.array([np.random.normal(trn[7, 0], 0.0002, 2), np.random.normal(trn[7, 1], 0.0002, 2)]).transpose(), axis=0)
+# print(len(trn))
+# trn = np.insert(trn, len(trn)-1, np.array([np.random.normal(trn[len(trn)-1, 0], 0.0001, 100), np.random.normal(trn[len(trn)-1, 1], 0.0001, 100)]).transpose(), axis=0)
+# print(len(trn))
+#
+# # trn = np.array([[1.340116, 103.694897], [1.340674, 103.694253]])
+# trip_id = [1]*7 + [2]*106
+# trajectory(trn[:, 0], trn[:, 1], trip_id, mark_od=True, max_sample=0)
+#
+# gmap3 = gmplot.GoogleMapPlotter(1.34, 103.69, 13)
+#
+# ie = ImageExporter(mbtiles_file="/Users/liming/Downloads/2017-07-03_asia_malaysia-singapore-brunei.mbtiles")
+# ie.add_filter(GrayScale())
+# ie.export_image(bbox=(103.59, 1.201, 104.05, 1.49), zoomlevel=5, imagepath="map0.png")
+#
+# from io import BytesIO, StringIO
+# from PIL.Image import ID, OPEN
+# import logging
+# logging.basicConfig(level=logging.DEBUG)
+# mbreader = MBTilesReader("/Users/liming/Downloads/2017-07-03_asia_malaysia-singapore-brunei.mbtiles")
+# grid = ie.grid_tiles((103.59, 1.201, 104.05, 1.49), 3)
+# data = mbreader.tile(3, 6, 3)
+#
+# with open('tile.txt', 'wb') as out:
+#     out.write(data)
+#
+# fp = BytesIO(data)
+# prefix = fp.read(16)
+# factory, accept = OPEN["JPEG"]
+# accept(prefix)
+# ID
+# OPEN
+# Image.open(fp)
+# data = ie._tile_image(ie.tile((3, 6, 3)))

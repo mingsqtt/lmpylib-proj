@@ -2039,7 +2039,7 @@ def create_one_hot(df, categorical_col, col_name_format=None, levels_mapper="sma
         levels = df[categorical_col].unique()
     elif levels == "smart":
         uniq_vals = df[categorical_col].unique()
-        if (type(uniq_vals[0]) == str) or (type(levels[len(uniq_vals) - 1]) == str):
+        if (type(uniq_vals[0]) == str) or (type(uniq_vals[len(uniq_vals) - 1]) == str):
             levels = {}
             used_names = set()
             for val in uniq_vals:
@@ -2086,4 +2086,76 @@ def create_one_hot(df, categorical_col, col_name_format=None, levels_mapper="sma
                     "One-hot encoded column name is too long. Consider using levels_mapper to map the long data value to a shorter code.")
 
     return df, new_col_indices
+
+
+def shift_down(src_col, append_col_to_df=None, new_col_name=None, shift_by=1, fill_head_with="same"):
+    if (type(src_col) == np.ndarray) or (type(src_col) == list):
+        out_lst = list(src_col)
+        out_lst[shift_by:] = src_col[:(-shift_by)]
+    elif type(src_col) == pd.Series:
+        out_lst = src_col.to_list()
+        out_lst[shift_by:] = src_col.iloc[:(-shift_by)].to_list()
+    elif (type(src_col) == str) and (append_col_to_df is not None):
+        col_ind = np.argwhere(append_col_to_df.columns.values == src_col)
+        if len(col_ind) == 0:
+            raise Exception("'{}' column doesn't exist".format(src_col))
+        col_ind = col_ind[0][0]
+        out_lst = append_col_to_df[src_col].to_list()
+        out_lst[shift_by:] = append_col_to_df.iloc[:(-shift_by), col_ind].to_list()
+    else:
+        raise Exception("Invalid src_col")
+
+    if fill_head_with != "same":
+        out_lst[:shift_by] = [fill_head_with]*shift_by
+
+    if append_col_to_df is not None:
+        if type(new_col_name) == str:
+            append_col_to_df.loc[:, new_col_name] = out_lst
+            return append_col_to_df
+        elif type(src_col) == str:
+            append_col_to_df.loc[:, src_col + ".prev"] = out_lst
+            return append_col_to_df
+        elif type(src_col) == pd.Series:
+            append_col_to_df.loc[:, src_col.name + ".prev"] = out_lst
+            return append_col_to_df
+
+    return out_lst
+
+
+def shift_up(src_col, append_col_to_df=None, new_col_name=None, shift_by=1, fill_tail_with="same"):
+    if (type(src_col) == np.ndarray) or (type(src_col) == list):
+        out_lst = list(src_col)
+        out_lst[:(-shift_by)] = src_col[shift_by:]
+    elif type(src_col) == pd.Series:
+        out_lst = src_col.to_list()
+        out_lst[:(-shift_by)] = src_col.iloc[shift_by:].to_list()
+    elif (type(src_col) == str) and (append_col_to_df is not None):
+        col_ind = np.argwhere(append_col_to_df.columns.values == src_col)
+        if len(col_ind) == 0:
+            raise Exception("'{}' column doesn't exist".format(src_col))
+        col_ind = col_ind[0][0]
+        out_lst = append_col_to_df[src_col].to_list()
+        out_lst[:(-shift_by)] = append_col_to_df.iloc[shift_by:, col_ind].to_list()
+    else:
+        raise Exception("Invalid src_col")
+
+    if fill_tail_with != "same":
+        out_lst[(-shift_by):] = [fill_tail_with]*shift_by
+
+    if append_col_to_df is not None:
+        if type(new_col_name) == str:
+            append_col_to_df.loc[:, new_col_name] = out_lst
+            return append_col_to_df
+        elif type(src_col) == str:
+            append_col_to_df.loc[:, src_col + ".next"] = out_lst
+            return append_col_to_df
+        elif type(src_col) == pd.Series:
+            append_col_to_df.loc[:, src_col.name + ".next"] = out_lst
+            return append_col_to_df
+
+    return out_lst
+
+
+
+
 
