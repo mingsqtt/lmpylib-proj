@@ -2012,6 +2012,9 @@ def iqr_outliers(arr, multiplier=1.5, upper_only=False, return_filter=False, ret
 def create_one_hot(df, categorical_col, col_name_format=None, levels_mapper="smart", dtype=None):
     if (type(categorical_col) == str) and (np.sum(df.columns.values == categorical_col) == 0):
         raise Exception("{} has to be a dataframe's column name or column index")
+    elif type(categorical_col) == pd.Series:
+        raise Exception("categorical_col must be a column name or list of column names")
+
     if type(categorical_col) == int:
         if categorical_col < len(df.columns.values):
             categorical_col = df.columns.values[categorical_col]
@@ -2033,8 +2036,11 @@ def create_one_hot(df, categorical_col, col_name_format=None, levels_mapper="sma
     if type(arr) == pd.core.arrays.categorical.Categorical:
         if arr.ordered:
             print("Not recommended to create one-hot encoding for ordered categorical variable.")
-        if levels is None:
-            levels = arr.values.categories.values
+        if (levels is None) or (levels == "smart"):
+            if dir(arr).__contains__("categories"):
+                levels = arr.categories.values
+            else:
+                levels = arr.values.categories.values
     elif levels is None:
         levels = df[categorical_col].unique()
     elif levels == "smart":
