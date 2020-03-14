@@ -10,6 +10,9 @@ import math
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
+import time
+import threading
+import multiprocessing
 import pytz
 
 
@@ -26,14 +29,14 @@ def _summarize_categorical(data, include_na_only_if_exist=False, sort_by="count"
     return group
 
 
-def _summarize_numeric(data, as_rows=False):
+def _summarize_numeric(data, as_rows=False, outlier_iqr_multiplier=None, outlier_std_multiplier=None):
     without_na = np.array([val for val in data if (val is not None) and (not pd.isna(val))])
 
     if len(without_na) == 0:
         if as_rows:
             return pd.DataFrame({
-                "Stats": [None, None, None, None, None, None, len(data) - len(without_na)]},
-                index=["Min", "Q1", "Median", "Mean", "Q3", "Max", "NA"])
+                "Stats": [None, None, None, None, None, None, len(data), len(data) - len(without_na)]},
+                index=["Min", "Q1", "Median", "Mean", "Q3", "Max", "Len", "NA"])
         else:
             return pd.DataFrame({
                 "Min": [None],
@@ -42,14 +45,15 @@ def _summarize_numeric(data, as_rows=False):
                 "Mean": [None],
                 "Q3": [None],
                 "Max": [None],
+                "Len": [len(data)],
                 "NA": [len(data) - len(without_na)]
             }, index=[""])
 
     if as_rows:
         return pd.DataFrame({
             "Stats": [np.min(without_na), np.quantile(without_na, 0.25), np.median(without_na), np.mean(without_na),
-                      np.quantile(without_na, 0.75), np.max(without_na), len(data) - len(without_na)]},
-            index=["Min", "Q1", "Median", "Mean", "Q3", "Max", "NA"])
+                      np.quantile(without_na, 0.75), np.max(without_na), len(data), len(data) - len(without_na)]},
+            index=["Min", "Q1", "Median", "Mean", "Q3", "Max", "Len", "NA"])
     else:
         return pd.DataFrame({
             "Min": [np.min(without_na)],
@@ -58,8 +62,118 @@ def _summarize_numeric(data, as_rows=False):
             "Mean": [np.mean(without_na)],
             "Q3": [np.quantile(without_na, 0.75)],
             "Max": [np.max(without_na)],
+            "Len": [len(data)],
             "NA": [len(data) - len(without_na)]
         }, index=[""])
+
+
+def _round_for_print(num):
+    if abs(num) >= 1000:
+        return np.round(num, 0)
+    elif abs(num) >= 10:
+        return np.round(num, 1)
+    elif abs(num) >= 1:
+        return np.round(num, 2)
+    else:
+        return num
+
+
+def _summarize_outlier(data, iqr_multiplier, std_multiplier, one_sided, as_rows=False):
+    without_na = np.array([val for val in data if (val is not None) and (not pd.isna(val))])
+
+    if len(without_na) == 0:
+        if as_rows:
+            return pd.DataFrame({
+                "Stats": [None, None, None, None, None, None, len(data), len(data) - len(without_na)]},
+                index=["Min", "Q1", "Median", "Mean", "Q3", "Max", "Len", "NA"])
+        else:
+            return pd.DataFrame({
+                "Min": [None],
+                "Q1": [None],
+                "Median": [None],
+                "Mean": [None],
+                "Q3": [None],
+                "Max": [None],
+                "Len": [len(data)],
+                "NA": [len(data) - len(without_na)]
+            }, index=[""])
+
+    mu = np.mean(without_na)
+    std = np.std(without_na)
+    q1 = np.quantile(without_na, 0.25)
+    q3 = np.quantile(without_na, 0.75)
+    ma = np.max(without_na)
+    mi = np.min(without_na)
+    med = np.median(without_na)
+    iqr = q3 - q1
+    std_upper = mu + std * std_multiplier
+    std_lower = mu - std * std_multiplier
+    iqr_upper = q3 + iqr * iqr_multiplier
+    iqr_lower = q1 - iqr * iqr_multiplier
+    n_data = len(data)
+    n_nonna = len(without_na)
+    n_iqr_greater = np.sum(without_na > iqr_upper)
+    n_iqr_less = np.sum(without_na < iqr_lower)
+    n_std_greater = np.sum(without_na > std_upper)
+    n_std_less = np.sum(without_na < std_lower)
+
+    iqr_upper = _round_for_print(iqr_upper)
+    iqr_lower = _round_for_print(iqr_lower)
+    std_upper = _round_for_print(std_upper)
+    std_lower = _round_for_print(std_lower)
+    mu = _round_for_print(mu)
+    med = _round_for_print(med)
+    q1 = _round_for_print(q1)
+    q3 = _round_for_print(q3)
+
+    if not one_sided:
+        if as_rows:
+            return pd.DataFrame({
+                "Stats": [mi, iqr_lower, q1, med, q3, iqr_upper, ma, n_iqr_less, n_iqr_greater, n_data, n_data - n_nonna,
+                          std_lower, mu, std_upper, n_std_less, n_std_greater]},
+                index=["Min", "-IQR", "Q1", "Median", "Q3", "+IQR", "Max", "Out(-IQR)", "Out(+IQR)", "Len", "NA",
+                       "-Std", "Mean", "+Std", "Out(-Std)", "Out(+Std)"])
+        else:
+            return pd.DataFrame({
+                "Min": [mi],
+                "-IQR": [iqr_lower],
+                "Q1": [q1],
+                "Median": [med],
+                "Q3": [q3],
+                "+IQR": [iqr_upper],
+                "Max": [ma],
+                "Out(-IQR)": [n_iqr_less],
+                "Out(+IQR)": [n_iqr_greater],
+                "Len": [n_data],
+                "NA": [n_data - n_nonna],
+                "-Std": [std_lower],
+                "Mean": [mu],
+                "+Std": [std_upper],
+                "Out(-Std)": [n_std_less],
+                "Out(+Std)": [n_std_greater]
+            }, index=[""])
+    else:
+        if as_rows:
+            return pd.DataFrame({
+                "Stats": [mi, q1, med, q3, iqr_upper, ma, n_iqr_greater, n_data, n_data - n_nonna,
+                          mu, std_upper, n_std_greater]},
+                index=["Min", "Q1", "Median", "Q3", "+IQR", "Max", "Out(+IQR)", "Len", "NA",
+                       "Mean", "+Std", "Out(+Std)"])
+        else:
+            return pd.DataFrame({
+                "Min": [mi],
+                "Q1": [q1],
+                "Median": [med],
+                "Q3": [q3],
+                "+IQR": [iqr_upper],
+                "Max": [ma],
+                "Out(+IQR)": [n_iqr_greater],
+                "Len": [n_data],
+                "NA": [n_data - n_nonna],
+                "Mean": [mu],
+                "+Std": [std_upper],
+                "Out(+Std)": [n_std_greater]
+            }, index=[""])
 
 
 def _summarize_datetime(data, as_rows=False):
@@ -74,8 +188,8 @@ def _summarize_datetime(data, as_rows=False):
     if len(without_na) == 0:
         if as_rows:
             return pd.DataFrame({
-                "Stats": [None, None, None, None, None, None, len(data) - len(without_na)]},
-                index=["Min", "Q1", "Median", "Mean", "Q3", "Max", "NA"])
+                "Stats": [None, None, None, None, None, None, len(data), len(data) - len(without_na)]},
+                index=["Min", "Q1", "Median", "Mean", "Q3", "Max", "Len", "NA"])
         else:
             return pd.DataFrame({
                 "Min": [None],
@@ -84,6 +198,7 @@ def _summarize_datetime(data, as_rows=False):
                 "Mean": [None],
                 "Q3": [None],
                 "Max": [None],
+                "Len": [len(data)],
                 "NA": [len(data) - len(without_na)]
             }, index=[""])
 
@@ -98,8 +213,9 @@ def _summarize_datetime(data, as_rows=False):
                       np.mean(without_na).astype('datetime64[ns]'),
                       np.quantile(without_na, 0.75).astype('datetime64[ns]'),
                       np.max(without_na).astype('datetime64[ns]'),
+                      len(data),
                       len(data) - len(without_na)]},
-            index=["Min", "Q1", "Median", "Mean", "Q3", "Max", "NA"])
+            index=["Min", "Q1", "Median", "Mean", "Q3", "Max", "Len", "NA"])
     else:
         return pd.DataFrame({
             "Min": [np.min(without_na).astype('datetime64[ns]')],
@@ -108,6 +224,7 @@ def _summarize_datetime(data, as_rows=False):
             "Mean": [np.mean(without_na).astype('datetime64[ns]')],
             "Q3": [np.quantile(without_na, 0.75).astype('datetime64[ns]')],
             "Max": [np.max(without_na).astype('datetime64[ns]')],
+            "Len": [len(data)],
             "NA": [len(data) - len(without_na)]
         }, index=[""])
 
@@ -195,7 +312,7 @@ def summary(data, is_numeric=None, print_only=None, auto_combine_result=True, _n
         for colname in data.columns:
             summ = summary(data[colname])
             if auto_combine_result & (type(summ) == pd.DataFrame) & (
-            np.all(summ.columns.to_list() == ["Min", "Q1", "Median", "Mean", "Q3", "Max", "NA"])):
+            np.all(summ.columns.to_list() == ["Min", "Q1", "Median", "Mean", "Q3", "Max", "Len", "NA"])):
                 summ.index = [colname]
                 if str(summ.dtypes[0]).find("date") >= 0:
                     if datetime_summaries is None:
@@ -231,6 +348,39 @@ def summary(data, is_numeric=None, print_only=None, auto_combine_result=True, _n
             return list(sum_return.values())[0]
         else:
             return sum_return
+    else:
+        print("Unsupported type {}".format(type_data))
+
+
+def outlier_summary(data, print_only=None, iqr_multiplier=1.5, std_multiplier=2, one_sided=True):
+    if pd.get_option('display.max_columns') < 16:
+        pd.set_option('display.max_columns', 16)
+
+    if pd.get_option("display.width") < 140:
+        pd.set_option("display.width", 140)
+
+    type_data = type(data)
+    if (type_data == list) or (type_data == np.ndarray) or (type_data == pd.Series):
+        sum_return = _summarize_outlier(data, iqr_multiplier, std_multiplier, one_sided)
+
+        if (print_only is not None) and print_only:
+            print(sum_return, "\n")
+        else:
+            return sum_return
+    elif type_data == pd.DataFrame:
+        outlier_summaries = None
+        for colname in data.columns:
+            summ = outlier_summary(data[colname], iqr_multiplier=iqr_multiplier, std_multiplier=std_multiplier, one_sided=one_sided)
+            summ.index = [colname]
+            if outlier_summaries is None:
+                outlier_summaries = summ
+            else:
+                outlier_summaries = outlier_summaries.append(summ, ignore_index=False)
+
+        if (print_only is not None) and print_only:
+            print(outlier_summaries, "\n")
+        else:
+            return outlier_summaries
     else:
         print("Unsupported type {}".format(type_data))
 
@@ -2161,6 +2311,83 @@ def shift_up(src_col, append_col_to_df=None, new_col_name=None, shift_by=1, fill
 
     return out_lst
 
+
+class DataFrameParallelTaskPartition:
+    def __init__(self, data_slice):
+        self.data_slice = data_slice
+        self.n_pending = len(data_slice)
+
+    def reduce(self, by=1):
+        self.n_pending = self.n_pending - by
+
+    def completed(self):
+        return self.n_pending <= 0
+
+
+class DataFramePartitionThread (threading.Thread):
+    def __init__(self, thread_id, partition, task_func, *args):
+        threading.Thread.__init__(self)
+        self.thread_id = thread_id
+        self.task_func = task_func
+        self.args = args
+        self.partition = partition
+
+    def run(self):
+        print("Starting thread[{}]".format(self.thread_id))
+        # self.data.apply(self.task_func, 1, thread_id = self.thread_id, n_incomplete_rows_arr = self.n_incomplete_rows_arr)
+        if len(self.args) == 0:
+            for i, row in self.partition.data_slice.iterrows():
+                row = self.task_func(row, i, self.partition.data_slice)
+                if type(row) == pd.core.series.Series:
+                    self.partition.data_slice.loc[i] = row
+                self.partition.reduce()
+        else:
+            for i, row in self.partition.data_slice.iterrows():
+                row = self.task_func(row, i, self.partition.data_slice, *self.args)
+                if type(row) == pd.core.series.Series:
+                    self.partition.data_slice.loc[i] = row
+                self.partition.reduce()
+
+
+def parallelize_for_dataframe(df, partition_filter_2D, task_func, print_progress_interval=30, *args):
+    if (type(partition_filter_2D) != np.ndarray) or (partition_filter_2D.dtype != np.bool) or (len(partition_filter_2D.shape) != 2) or (partition_filter_2D.shape[0] != len(df)):
+        raise Exception("partition_filter_2D must be a 2D boolean ndarray in shape (n_row, n_partition), where n_row = len(df) and n_partition is the number of threads to be used.")
+
+    n_thread = partition_filter_2D.shape[1]
+    n_total_rows_arr = np.sum(partition_filter_2D, axis=0)
+    partitions = list()
+    threads = list()
+
+    start_time = datetime.now()
+    print("Parallel processing starts at {}".format(start_time))
+    for thread_id in range(n_thread):
+        slice = df.loc[partition_filter_2D[:, thread_id]].copy()
+        partition = DataFrameParallelTaskPartition(slice)
+        partitions.append(partition)
+        thread = DataFramePartitionThread(thread_id, partition, task_func, *args)
+        threads.append(thread)
+        thread.start()
+
+    if print_progress_interval > 0:
+        n_sec = 0
+        n_incomplete_rows_arr = [partition.n_pending for partition in partitions]
+        while np.sum(n_incomplete_rows_arr) > 0:
+            time.sleep(print_progress_interval)
+            n_sec += print_progress_interval
+            print("{} min completion %: {}".format(round(n_sec / 60, 1), list(np.round((1 - n_incomplete_rows_arr / n_total_rows_arr) * 100, 1))))
+            n_incomplete_rows_arr = [partition.n_pending for partition in partitions]
+    else:
+        for thread in threads:
+            thread.join()
+
+    finish_time = datetime.now()
+    total_sec = (finish_time - start_time).total_seconds()
+    if total_sec > 60:
+        print("Parallel processing finishes at {}, taken {} minutes".format(finish_time, round(total_sec / 60, 1)))
+    else:
+        print("Parallel processing finishes at {}, taken {} seconds".format(finish_time, round(total_sec, 0)))
+
+    return pd.concat([partition.data_slice for partition in partitions], ignore_index=False)
 
 
 
