@@ -4,11 +4,11 @@ from matplotlib import pyplot as plt
 from matplotlib import colors
 import matplotlib
 from matplotlib.patches import Polygon
-from mpl_toolkits.basemap import Basemap
+# from mpl_toolkits.basemap import Basemap
 from matplotlib.collections import PatchCollection
-from landez import ImageExporter
-from landez.filters import GrayScale
-from landez.sources import MBTilesReader
+# from landez import ImageExporter
+# from landez.filters import GrayScale
+# from landez.sources import MBTilesReader
 import itertools
 import math
 
@@ -71,7 +71,7 @@ def trajectory(lat, lng, trip_id=None, max_sample=100, line_style="solid", line_
 
 
 
-basemap = Basemap(llcrnrlon= 75,llcrnrlat=10,urcrnrlon=150,urcrnrlat=55,projection='poly',lon_0 = 116.65,lat_0 = 40.02,ax = ax)
+# basemap = Basemap(llcrnrlon= 75,llcrnrlat=10,urcrnrlon=150,urcrnrlat=55,projection='poly',lon_0 = 116.65,lat_0 = 40.02,ax = ax)
 
 #
 # trn = np.array([[1.340116, 103.694897],

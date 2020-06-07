@@ -4,3 +4,5 @@ lmpylib_mingsqtt.egg-info/
 data/
 test*.py
 __pycache__/
+.idea/
+.DS_Store
