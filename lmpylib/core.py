@@ -711,10 +711,11 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
 
                     x_labels = _try_map(df.x, x_scale_label_mapper)
                     x_ticks = list(range(len(x_labels)))
+                    clr = color[i] if (type(color) == list) or (type(color) == np.ndarray) else color
                     if horizontal:
-                        ax.barh(x_labels, df.loc[:, y_col_name], width, color=color)
+                        ax.barh(x_labels, df.loc[:, y_col_name], width, color=clr)
                     else:
-                        ax.bar(x_labels, df.loc[:, y_col_name], width, color=color)
+                        ax.bar(x_labels, df.loc[:, y_col_name], width, color=clr)
                 else:
                     if len(x.dtypes) == 1:
                         df = df_facet_spread.loc[:, ["x", y_col_name]]
@@ -736,42 +737,56 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                             else:
                                 ax.scatter(facet_x_vals, facet_y_vals, marker=marker, s=facet_z_vals,
                                            alpha=0.3 if alpha is None else alpha)
-                        elif (color is not None) and (color != ""):
+                        elif (type(color) == str) and (color != ""):
                             ax.scatter(facet_x_vals, facet_y_vals, c=np.repeat(color, len(facet_x_vals)), marker=marker,
+                                   s=marker_size,
+                                   alpha=1 if alpha is None else alpha)
+                        elif (type(color) == list) or (type(color) == np.ndarray):
+                            ax.scatter(facet_x_vals, facet_y_vals, c=np.repeat(color[i], len(facet_x_vals)),
+                                       marker=marker,
                                        s=marker_size,
                                        alpha=1 if alpha is None else alpha)
                         else:
                             ax.scatter(facet_x_vals, facet_y_vals, marker=marker, s=marker_size,
                                        alpha=1 if alpha is None else alpha)
+
                     elif plot_type == "line":
-                        ax.plot(facet_x_vals, facet_y_vals, linewidth=width, linestyle=style, color=color,
+                        clr = color[i] if (type(color) == list) or (type(color) == np.ndarray) else color
+                        ax.plot(facet_x_vals, facet_y_vals, linewidth=width, linestyle=style, color=clr,
                                 marker=marker,
                                 markersize=marker_size, alpha=1 if alpha is None else alpha)
                     elif plot_type == "area":
-                        ax.fill_between(facet_x_vals.astype(float), facet_y_vals, color=color, alpha=1 if alpha is None else alpha)
+                        clr = color[i] if (type(color) == list) or (type(color) == np.ndarray) else color
+                        ax.fill_between(facet_x_vals.astype(float), facet_y_vals, color=clr, alpha=1 if alpha is None else alpha)
                     else:
                         raise Exception("plot type '{}' not supported".format(plot_type))
 
                     x_ticks = ax.get_xticks()
                     x_labels = x_ticks
 
-                ax.set_xlabel(_try_map([facet], facet_label_mapper)[0])
+                facet_label = _try_map([facet], facet_label_mapper)[0]
+                if (facet_label is not None) and (facet_label != ""):
+                    ax.set_xlabel(facet_label)
 
                 if y_scale_range is not None:
-                    if horizontal:
-                        if (type(y_scale_range) == tuple) or (type(y_scale_range) == list):
-                            ax.set_xlim([y_scale_range[0], y_scale_range[1]])
-                        elif (type(y_scale_range) == str) and (y_scale_range == "fixed"):
-                            ax.set_xlim([global_min_y * 1.05, global_max_y * 1.05])
-                        elif (type(y_scale_range) == int) or (type(y_scale_range) == float):
-                            ax.set_xlim([0, y_scale_range])
+                    if type(y_scale_range) == dict:
+                        scale_range = y_scale_range[facet]
                     else:
-                        if (type(y_scale_range) == tuple) or (type(y_scale_range) == list):
-                            ax.set_ylim([y_scale_range[0], y_scale_range[1]])
-                        elif (type(y_scale_range) == str) and (y_scale_range == "fixed"):
+                        scale_range = y_scale_range
+                    if horizontal:
+                        if (type(scale_range) == tuple) or (type(scale_range) == list):
+                            ax.set_xlim([scale_range[0], scale_range[1]])
+                        elif (type(scale_range) == str) and (scale_range == "fixed"):
+                            ax.set_xlim([global_min_y * 1.05, global_max_y * 1.05])
+                        elif (type(scale_range) == int) or (type(scale_range) == float):
+                            ax.set_xlim([0, scale_range])
+                    else:
+                        if (type(scale_range) == tuple) or (type(scale_range) == list):
+                            ax.set_ylim([scale_range[0], scale_range[1]])
+                        elif (type(scale_range) == str) and (scale_range == "fixed"):
                             ax.set_ylim([global_min_y * 1.05, global_max_y * 1.05])
-                        elif (type(y_scale_range) == int) or (type(y_scale_range) == float):
-                            ax.set_ylim([0, y_scale_range])
+                        elif (type(scale_range) == int) or (type(scale_range) == float):
+                            ax.set_ylim([0, scale_range])
 
                 if (type(x_scale_ticks) == list) or (type(x_scale_ticks) == np.ndarray):
                     if _is_numeric_array(x_scale_ticks, consider_datetime=True):
@@ -955,29 +970,35 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
                     facet_max_y, facet_min_y = np.max(np.nanmax(df.iloc[:, 1:-1:len(x.dtypes)]), 0), np.min(
                         np.nanmin(df.iloc[:, 1:-1:len(x.dtypes)]), 0)
 
-                ax.set_xlabel(_try_map([facet], facet_label_mapper)[0])
+                facet_label = _try_map([facet], facet_label_mapper)[0]
+                if (facet_label is not None) and (facet_label != ""):
+                    ax.set_xlabel(facet_label)
 
                 if y_scale_range is not None:
+                    if type(y_scale_range) == dict:
+                        scale_range = y_scale_range[facet]
+                    else:
+                        scale_range = y_scale_range
                     if horizontal:
-                        if (type(y_scale_range) == tuple) or (type(y_scale_range) == list):
-                            ax.set_xlim([y_scale_range[0], y_scale_range[1]])
-                        elif (type(y_scale_range) == str) and (y_scale_range == "fixed"):
+                        if (type(scale_range) == tuple) or (type(scale_range) == list):
+                            ax.set_xlim([scale_range[0], scale_range[1]])
+                        elif (type(scale_range) == str) and (scale_range == "fixed"):
                             if global_min_accum_y is not None:
                                 ax.set_xlim([global_min_accum_y * 1.05, global_max_accum_y * 1.05])
                             else:
                                 ax.set_xlim([global_min_y * 1.05, global_max_y * 1.05])
-                        elif (type(y_scale_range) == int) or (type(y_scale_range) == float):
-                            ax.set_xlim([0, y_scale_range])
+                        elif (type(scale_range) == int) or (type(scale_range) == float):
+                            ax.set_xlim([0, scale_range])
                     else:
-                        if (type(y_scale_range) == tuple) or (type(y_scale_range) == list):
-                            ax.set_ylim([y_scale_range[0], y_scale_range[1]])
-                        elif (type(y_scale_range) == str) and (y_scale_range == "fixed"):
+                        if (type(scale_range) == tuple) or (type(scale_range) == list):
+                            ax.set_ylim([scale_range[0], scale_range[1]])
+                        elif (type(scale_range) == str) and (scale_range == "fixed"):
                             if global_min_accum_y is not None:
                                 ax.set_ylim([global_min_accum_y * 1.05, global_max_accum_y * 1.05])
                             else:
                                 ax.set_ylim([global_min_y * 1.05, global_max_y * 1.05])
-                        elif (type(y_scale_range) == int) or (type(y_scale_range) == float):
-                            ax.set_ylim([0, y_scale_range])
+                        elif (type(scale_range) == int) or (type(scale_range) == float):
+                            ax.set_ylim([0, scale_range])
                 else:
                     if horizontal:
                         ax.set_xlim([facet_min_y * 1.05, facet_max_y * 1.05])
@@ -1044,6 +1065,8 @@ def _facet_plot(x, plot_type, style=None, width=0.5, color=None, marker=None, ma
             fig.suptitle(title, size=16)
         if show:
             fig.show()
+        else:
+            return fig, axes, plots
     else:
         raise Exception(
             "x must be a DataFrame with 1 numeric column, 2 indices (without group_by) or 3 indices (with group_by).")
@@ -1348,7 +1371,7 @@ def barplot2(x, width=0.5, color=None, xlab=None, ylab=None, title=None, sort_by
                  group_position="stack", groups_sort_by_value=True, groups_ascending=False,
                  group_label_mapper=None,
                  legend_title=None, legend_loc="upper right", show=False):
-    _facet_plot(x, plot_type="bar", style=group_position, width=width, color=color, xlab=xlab,
+    return _facet_plot(x, plot_type="bar", style=group_position, width=width, color=color, xlab=xlab,
                 ylab=ylab, title=title, sort_by=sort_by, ascending=ascending,
                 horizontal=horizontal, figure_inches=figure_inches, y_scale_range=y_scale_range,
                 x_scale_rotation=x_scale_rotation,
@@ -1687,7 +1710,7 @@ def plot2(x, style="solid", width=1.5, color=None, marker=None, marker_size=None
         plot_type = style
         style = None
 
-    _facet_plot(x, plot_type, style=style, width=width, color=color, marker=marker, marker_size=marker_size,
+    return _facet_plot(x, plot_type, style=style, width=width, color=color, marker=marker, marker_size=marker_size,
                 alpha=alpha, xlab=xlab,
                 ylab=ylab, title=title,
                 figure_inches=figure_inches, y_scale_range=y_scale_range, x_scale_ticks=x_scale_ticks,
@@ -1765,7 +1788,7 @@ def scatter2(x, z=None, normalize_z_range=(10, 255), color=None, marker=None, ma
             x2 = x.copy()
             x2.iloc[: 1] = _normalize_z(x, z, normalize_z_range)
 
-    _facet_plot(x2, "scatter", style="scatter", color=color, marker=marker,
+    return _facet_plot(x2, "scatter", style="scatter", color=color, marker=marker,
                 marker_size=marker_size,
                 alpha=alpha, xlab=xlab,
                 ylab=ylab, title=title,
@@ -1941,23 +1964,38 @@ def nanmax(arr):
     return max_val
 
 
-def localize_datetime(datetime_arr, timezone):
-    if (timezone is not None) and (len(datetime_arr) > 0):
-        if ((type(datetime_arr) == list) or (type(datetime_arr) == np.ndarray)) and (str(type(datetime_arr[0])) == "<class 'datetime.datetime'>"):
-            tz = pytz.timezone(timezone)
-            return [tz.localize(dt) if dt is not None else None for dt in datetime_arr]
-        elif (type(datetime_arr) == pd.Series) and (str(datetime_arr.dtype) != "datetime64[D]"):
-            return datetime_arr.dt.tz_localize(timezone)
+def _localize_datetime(dt, tz):
+    if dt is not None:
+        if dt.tzinfo is None:
+            return tz.localize(dt)
         else:
-            return datetime_arr
+            return dt.astimezone(tz)
     else:
-        return datetime_arr
+        return dt
+
+
+def localize_datetime(datetime_data, timezone="Asia/Singapore"):
+    if timezone is not None:
+        tz = pytz.timezone(timezone)
+        if str(type(datetime_data)) == "<class 'datetime.datetime'>":
+            return _localize_datetime(datetime_data, tz)
+        elif ((type(datetime_data) == list) or (type(datetime_data) == np.ndarray)) and (len(datetime_data) > 0) and (str(type(datetime_data[0])) == "<class 'datetime.datetime'>"):
+            return [_localize_datetime(dt, tz) for dt in datetime_data]
+        elif (type(datetime_data) == pd.Series) and (str(datetime_data.dtype) != "datetime64[D]"):
+            if datetime_data.dt.tz is None:
+                return datetime_data.dt.tz_localize(timezone)
+            else:
+                return datetime_data.dt.tz_convert(timezone)
+        else:
+            return datetime_data
+    else:
+        return datetime_data
 
 
 def create_datetime_features(datetime_arr, df, col_name_prefix, year=True, month=True, day=True, wday=True,
                                  period=False, date_key=False,
                                  hour=True, minute=True, yday=True, yweek=False, month_sn=True, day_sn=True, week_sn=False,
-                                 hour_sn=False, round_to_nearest_nmin=[], categorize=True, timezone="Asia/Kuala_Lumpur"):
+                                 hour_sn=False, min_sn=False, sec_sn=False, round_to_nearest_nmin=[], categorize=True, timezone="Asia/Singapore"):
     if df is None:
         df = pd.DataFrame({})
     elif type(datetime_arr) == str:
@@ -2102,28 +2140,41 @@ def create_datetime_features(datetime_arr, df, col_name_prefix, year=True, month
             df[col_name_prefix + "week_sn"] = [math.floor((daysn + first_wday) / 7) if not pd.isna(daysn) else None for
                                                daysn in df[col_name_prefix + "day_sn"].values]
 
-    if hour_sn and (not is_date):
-        first_time = nanmin(datetime_obj_list)
-        first_time = datetime(first_time.year, first_time.month, first_time.day, first_time.hour, 0, 0)
-        df[col_name_prefix + "hour_sn"] = [int((dt - first_time).total_seconds() / 3600) if dt is not None else None for
-                                           dt in datetime_obj_list]
+    if not is_date:
+        if hour_sn or min_sn or sec_sn:
+            first_time = nanmin(datetime_obj_list)
 
-    if (round_to_nearest_nmin is not None) and (not is_date):
-        for nmin in round_to_nearest_nmin:
-            if nmin <= 0:
-                raise Exception("round_to_nearest_nmin must be positive")
-            elif nmin == 1:
-                col_name = col_name_prefix + "per_min"
-            elif nmin == 60:
-                col_name = col_name_prefix + "hourly"
-            elif (nmin > 60) and (nmin % 60 == 0):
-                col_name = col_name_prefix + str(int(nmin / 60)) + "hours"
-            else:
-                col_name = col_name_prefix + str(nmin) + "mins"
+        if hour_sn:
+            first_hr = datetime(first_time.year, first_time.month, first_time.day, first_time.hour, 0, 0)
+            df[col_name_prefix + "hour_sn"] = [int((dt - first_hr).total_seconds() / 3600) if dt is not None else None for
+                                               dt in datetime_obj_list]
 
-            df[col_name] = [
-                datetime.fromtimestamp(round(dt.timestamp() / (nmin * 60)) * nmin * 60, tz) if dt is not None else None for
-                dt in datetime_obj_list]
+        if min_sn:
+            first_min = datetime(first_time.year, first_time.month, first_time.day, first_time.hour, first_time.minute, 0)
+            df[col_name_prefix + "minute_sn"] = [int((dt - first_min).total_seconds() / 60) if dt is not None else None for
+                                               dt in datetime_obj_list]
+
+        if sec_sn:
+            first_sec = datetime(first_time.year, first_time.month, first_time.day, first_time.hour, first_time.minute, first_time.second)
+            df[col_name_prefix + "second_sn"] = [int((dt - first_sec).total_seconds()) if dt is not None else None for
+                                               dt in datetime_obj_list]
+
+        if round_to_nearest_nmin is not None:
+            for nmin in round_to_nearest_nmin:
+                if nmin <= 0:
+                    raise Exception("round_to_nearest_nmin must be positive")
+                elif nmin == 1:
+                    col_name = col_name_prefix + "per_min"
+                elif nmin == 60:
+                    col_name = col_name_prefix + "hourly"
+                elif (nmin > 60) and (nmin % 60 == 0):
+                    col_name = col_name_prefix + str(int(nmin / 60)) + "hours"
+                else:
+                    col_name = col_name_prefix + str(nmin) + "mins"
+
+                df[col_name] = [
+                    datetime.fromtimestamp(round(dt.timestamp() / (nmin * 60)) * nmin * 60, tz) if dt is not None else None for
+                    dt in datetime_obj_list]
 
     return df
 
@@ -2390,5 +2441,165 @@ def parallelize_for_dataframe(df, partition_filter_2D, task_func, print_progress
     return pd.concat([partition.data_slice for partition in partitions], ignore_index=False)
 
 
+def _movoper(arr, func, window_size, type, padding, padding_with=np.nan, forward_offset=1):
+    if len(arr) == 0:
+        return arr
+
+    n_arr = len(arr)
+    output = np.repeat(padding_with, n_arr)
+    vec = np.array([np.nan if pd.isna(num) else num for num in arr])
+
+    if padding == "valid":
+        if type == "c":
+            start = int(np.ceil(window_size / 2.0)) - 1
+            if (forward_offset == 1) and (window_size % 2 == 0):
+                for offset in range(n_arr - window_size + 1):
+                    output[start + offset + 1] = func(vec[offset:(offset + window_size)])
+            else:
+                for offset in range(n_arr - window_size + 1):
+                    output[start + offset] = func(vec[offset:(offset + window_size)])
+
+        elif type == "s":
+            start = window_size - 1
+            for offset in range(n_arr - window_size + 1):
+                output[start + offset] = func(vec[(start + offset + 1 - window_size):(start + offset + 1)])
+
+        elif type == "f":
+            for i in range(n_arr - window_size + 1 - forward_offset):
+                output[i] = func(vec[(i + forward_offset):(i + forward_offset + window_size)])
+
+        else:
+            raise Exception("Invalid type: {}. type must be 'c', 's' or 'f'.".format(type))
+
+    elif padding == "same":
+        if type == "c":
+            if (forward_offset == 1) or (window_size % 2 != 0):
+                offset_fore = int(np.floor(window_size / 2.0))
+            else:
+                offset_fore = int(np.floor(window_size / 2.0)) - 1
+            offset_back = window_size - offset_fore - 1
+            for i in range(n_arr):
+                output_val = func(vec[max(i - offset_fore, 0):min(i + offset_back + 1, n_arr)])
+                if not pd.isna(output_val):
+                    output[i] = output_val
+
+        elif type == "s":
+            offset_fore = window_size - 1
+            for i in range(n_arr):
+                output_val = func(vec[max(i - offset_fore, 0):(i + 1)])
+                if not pd.isna(output_val):
+                    output[i] = output_val
+
+        elif type == "f":
+            for i in range(n_arr - forward_offset):
+                output_val = func(vec[(i + forward_offset):min(i + forward_offset + window_size, n_arr)])
+                if not pd.isna(output_val):
+                    output[i] = output_val
+
+        else:
+            raise Exception("Invalid type: {}. type must be 'c', 's' or 'f'.".format(type))
+
+    else:
+        raise Exception("Invalid padding: {}. padding must be 'valid' or 'same'.".format(padding))
+
+    return output
 
 
+def ma(arr, window_size=5, type="c", padding="valid", padding_with=0.0, forward_offset=1):
+    return _movoper(arr, np.nanmean, window_size, type, padding, padding_with, forward_offset)
+
+
+def mov_mean(arr, window_size=5, type="c", padding="valid", padding_with=0.0, forward_offset=1):
+    return _movoper(arr, np.nanmean, window_size, type, padding, padding_with, forward_offset)
+
+
+def mov_median(arr, window_size=5, type="c", padding="valid", padding_with=0.0, forward_offset=1):
+    return _movoper(arr, np.nanmedian, window_size, type, padding, padding_with, forward_offset)
+
+
+def mov_sum(arr, window_size=5, type="c", padding="valid", padding_with=0.0, forward_offset=1):
+    return _movoper(arr, np.nansum, window_size, type, padding, padding_with, forward_offset)
+
+
+def mov_max(arr, window_size=5, type="c", padding="valid", padding_with=0.0, forward_offset=1):
+    return _movoper(arr, np.nanmax, window_size, type, padding, padding_with, forward_offset)
+
+
+def mov_min(arr, window_size=5, type="c", padding="valid", padding_with=0.0, forward_offset=1):
+    return _movoper(arr, np.nanmin, window_size, type, padding, padding_with, forward_offset)
+
+
+def mov_all(arr, window_size=5, type="c", padding="valid", padding_with=False, forward_offset=1):
+    return _movoper(arr, np.all, window_size, type, padding, padding_with, forward_offset)
+
+
+def mov_any(arr, window_size=5, type="c", padding="valid", padding_with=False, forward_offset=1):
+    return _movoper(arr, np.any, window_size, type, padding, padding_with, forward_offset)
+
+
+def __test_ma():
+    ma([1], 3, "f", "same")
+    ma([1, 4], 3, "f", "same")
+    ma([1, 4, 2], 3, "f", "same")
+    ma([1, 4, 2, 10], 3, "f", "same")
+    ma([1, 4, 2, None, 1], 3, "f", "same")
+    ma([1], 3, "f", "same", forward_offset=0)
+    ma([1, 4], 3, "f", "same", forward_offset=0)
+    ma([1, 4, 2], 3, "f", "same", forward_offset=0)
+    ma([1, 4, 2, 10], 3, "f", "same", forward_offset=0)
+    ma([1, 4, 2, None, 1], 3, "f", "same", forward_offset=0)
+
+    ma([1], 3, "s", "same")
+    ma([1, 4], 3, "s", "same")
+    ma([1, 4, 2], 3, "s", "same")
+    ma([1, 4, 2, 10], 3, "s", "same")
+    ma([1, 4, 2, None, 1], 3, "s", "same")
+
+    ma([1], 3, "c", "same")
+    ma([1, 4], 3, "c", "same")
+    ma([1, 4, 2], 3, "c", "same")
+    ma([1, 4, 2, 10], 3, "c", "same")
+    ma([1, 4, 2, None, 1], 3, "c", "same")
+    ma([1], 2, "c", "same")
+    ma([1, 4], 2, "c", "same")
+    ma([1, 4, 2], 2, "c", "same")
+    ma([1, 4, 2, 10], 2, "c", "same")
+    ma([1, 4, 2, None, 1], 2, "c", "same")
+    ma([1], 2, "c", "same", forward_offset=0)
+    ma([1, 4], 2, "c", "same", forward_offset=0)
+    ma([1, 4, 2], 2, "c", "same", forward_offset=0)
+    ma([1, 4, 2, 10], 2, "c", "same", forward_offset=0)
+    ma([1, 4, 2, None, 1], 2, "c", "same", forward_offset=0)
+
+    ma([1], 3, "f", "valid")
+    ma([1, 3], 3, "f", "valid")
+    ma([1, 3, 2], 3, "f", "valid")
+    ma([1, 3, 2, 10], 3, "f", "valid")
+    ma([1, 3, 2, None, 1], 3, "f", "valid")
+    ma([1], 3, "f", "valid", forward_offset=0)
+    ma([1, 3], 3, "f", "valid", forward_offset=0)
+    ma([1, 3, 2], 3, "f", "valid", forward_offset=0)
+    ma([1, 3, 2, 10], 3, "f", "valid", forward_offset=0)
+    ma([1, 3, 2, None, 1], 3, "f", "valid", forward_offset=0)
+
+    ma([1], 3, "s", "valid")
+    ma([1, 3], 3, "s", "valid")
+    ma([1, 3, 2], 3, "s", "valid")
+    ma([1, 3, 2, 10], 3, "s", "valid")
+    ma([1, 3, 2, None, 1], 3, "s", "valid")
+
+    ma([1], 3, "c", "valid")
+    ma([1, 3], 3, "c", "valid")
+    ma([1, 3, 2], 3, "c", "valid")
+    ma([1, 3, 2, 10], 3, "c", "valid")
+    ma([1, 3, 2, None, 1], 3, "c", "valid")
+    ma([1], 2, "c", "valid")
+    ma([1, 3], 2, "c", "valid")
+    ma([1, 3, 2], 2, "c", "valid")
+    ma([1, 3, 2, 10], 2, "c", "valid")
+    ma([1, 3, 2, None, 1], 2, "c", "valid")
+    ma([1], 2, "c", "valid", forward_offset=0)
+    ma([1, 3], 2, "c", "valid", forward_offset=0)
+    ma([1, 3, 2], 2, "c", "valid", forward_offset=0)
+    ma([1, 3, 2, 10], 2, "c", "valid", forward_offset=0)
+    ma([1, 3, 2, None, 1], 2, "c", "valid", forward_offset=0)

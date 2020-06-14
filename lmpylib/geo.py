@@ -13,7 +13,7 @@ import itertools
 import math
 
 
-def trajectory(lat, lng, trip_id=None, max_sample=100, line_style="solid", line_width=2, color="gray", marker="o", marker_size=5, mark_od=True, show_ticks=False, show=False):
+def plt_trajectory(lat, lng, trip_id=None, max_sample=100, line_style="solid", line_width=2, color="gray", marker="o", marker_size=5, mark_od=True, show_ticks=False, show=False):
     if len(lng) != len(lat):
         raise Exception("Length of lng array and lat array must be same.")
     if trip_id is not None:
@@ -27,7 +27,7 @@ def trajectory(lat, lng, trip_id=None, max_sample=100, line_style="solid", line_
                 # hue = (int(t / 3) % n_colors) / n_colors
                 rgb = np.floor(colors.hsv_to_rgb([hue, 0.9, bright])*255).astype(int)
                 crl = "#" + "".join(['{:02x}'.format(num) for num in rgb])
-                trajectory(lat[trip_id == trip], lng[trip_id == trip], trip_id=None, max_sample=max_sample,
+                plt_trajectory(lat[trip_id == trip], lng[trip_id == trip], trip_id=None, max_sample=max_sample,
                            line_style=line_style, line_width=line_width, color=crl, marker=marker,
                            marker_size=marker_size, mark_od=mark_od, show_ticks=show_ticks, show=False)
             return
@@ -69,6 +69,24 @@ def trajectory(lat, lng, trip_id=None, max_sample=100, line_style="solid", line_
     if show:
         plt.show()
 
+
+# According to the NMEA Standard, Latitude and Longitude are output in the format Degrees, Minutes and
+# (Decimal) Fractions of Minutes. To convert to Degrees and Fractions of Degrees, or Degrees, Minutes, Seconds
+# and Fractions of seconds, the 'Minutes' and 'Fractional Minutes' parts need to be converted. In other words: If
+# the GPS Receiver reports a Latitude of 4717.112671 North and Longitude of 00833.914843 East, this is
+#
+# Latitude 47 Degrees, 17.112671 Minutes
+# Longitude 8 Degrees, 33.914843 Minutes
+# or
+# Latitude 47 Degrees, 17 Minutes, 6.76026 Seconds
+# Longitude 8 Degrees, 33 Minutes, 54.89058 Seconds
+# or
+# Latitude 47.28521118 Degrees
+# Longitude 8.56524738 Degrees
+def nmea_to_degree_fraction(nmea_value):
+    degree = np.floor(nmea_value / 100)
+    min_frac = nmea_value - degree * 100
+    return np.round(degree + min_frac / 60, 7)
 
 
 # basemap = Basemap(llcrnrlon= 75,llcrnrlat=10,urcrnrlon=150,urcrnrlat=55,projection='poly',lon_0 = 116.65,lat_0 = 40.02,ax = ax)
