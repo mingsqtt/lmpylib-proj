@@ -12,8 +12,13 @@ from datetime import datetime
 from datetime import timedelta
 import time
 import threading
-import multiprocessing
 import pytz
+
+
+pd.set_option("display.width", 250)
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.min_rows', 200)
+pd.set_option('display.max_columns', 500)
 
 
 def _summarize_categorical(data, include_na_only_if_exist=False, sort_by="count", ascending=True):
@@ -1870,7 +1875,7 @@ def gather(df, key_col, value_col, gather_cols, create_new_index=True):
     return df_gathered
 
 
-def spread(df, key_col, value_col, fill_numeric_na=True, new_col_name_format="{col_name}_{col_value}", return_group_values=False):
+def spread(df, key_col, value_col, fill_numeric_zero=True, new_col_name_format="{col_name}_{col_value}", return_group_values=False):
     index_dim = None
     index_of_index = None
     if type(key_col) == int:
@@ -1915,7 +1920,7 @@ def spread(df, key_col, value_col, fill_numeric_na=True, new_col_name_format="{c
         else:
             df_spread.columns = keep_cols + [new_col_name_format + str(k) for k in key_values]
 
-        if fill_numeric_na and (
+        if fill_numeric_zero and (
                 (str(df[value_col].dtype).find("int") >= 0) or (str(df[value_col].dtype).find("float") >= 0)):
             start_ind = len(df_spread.columns) - len(key_values)
             end_ind = len(df_spread.columns)
@@ -1937,7 +1942,7 @@ def spread(df, key_col, value_col, fill_numeric_na=True, new_col_name_format="{c
             if i != index_of_index:
                 keep_name_of_index.append(c)
 
-        spread_return = spread(df_temp, key_col, value_col, fill_numeric_na=fill_numeric_na,
+        spread_return = spread(df_temp, key_col, value_col, fill_numeric_zero=fill_numeric_zero,
                                new_col_name_format="" if new_col_name_format is None else new_col_name_format,
                                return_group_values=return_group_values)
         if return_group_values:
@@ -2145,17 +2150,17 @@ def create_datetime_features(datetime_arr, df, col_name_prefix, year=True, month
             first_time = nanmin(datetime_obj_list)
 
         if hour_sn:
-            first_hr = datetime(first_time.year, first_time.month, first_time.day, first_time.hour, 0, 0)
+            first_hr = localize_datetime(datetime(first_time.year, first_time.month, first_time.day, first_time.hour, 0, 0), timezone)
             df[col_name_prefix + "hour_sn"] = [int((dt - first_hr).total_seconds() / 3600) if dt is not None else None for
                                                dt in datetime_obj_list]
 
         if min_sn:
-            first_min = datetime(first_time.year, first_time.month, first_time.day, first_time.hour, first_time.minute, 0)
+            first_min = localize_datetime(datetime(first_time.year, first_time.month, first_time.day, first_time.hour, first_time.minute, 0), timezone)
             df[col_name_prefix + "minute_sn"] = [int((dt - first_min).total_seconds() / 60) if dt is not None else None for
                                                dt in datetime_obj_list]
 
         if sec_sn:
-            first_sec = datetime(first_time.year, first_time.month, first_time.day, first_time.hour, first_time.minute, first_time.second)
+            first_sec = localize_datetime(datetime(first_time.year, first_time.month, first_time.day, first_time.hour, first_time.minute, first_time.second), timezone)
             df[col_name_prefix + "second_sn"] = [int((dt - first_sec).total_seconds()) if dt is not None else None for
                                                dt in datetime_obj_list]
 
@@ -2441,7 +2446,7 @@ def parallelize_for_dataframe(df, partition_filter_2D, task_func, print_progress
     return pd.concat([partition.data_slice for partition in partitions], ignore_index=False)
 
 
-def _movoper(arr, func, window_size, type, padding, padding_with=np.nan, forward_offset=1):
+def movoper(arr, func, window_size, type, padding, padding_with=np.nan, forward_offset=1, stripe=1, return_valid_only=False):
     if len(arr) == 0:
         return arr
 
@@ -2453,20 +2458,49 @@ def _movoper(arr, func, window_size, type, padding, padding_with=np.nan, forward
         if type == "c":
             start = int(np.ceil(window_size / 2.0)) - 1
             if (forward_offset == 1) and (window_size % 2 == 0):
-                for offset in range(n_arr - window_size + 1):
-                    output[start + offset + 1] = func(vec[offset:(offset + window_size)])
+                offsets = list(range(0, n_arr - window_size + 1, stripe))
+
+                if return_valid_only:
+                    output = np.empty(len(offsets))
+                    for i, offset in enumerate(offsets):
+                        output[i] = func(vec[offset:(offset + window_size)])
+                else:
+                    for offset in offsets:
+                        output[start + 1 + offset] = func(vec[offset:(offset + window_size)])
+
             else:
-                for offset in range(n_arr - window_size + 1):
-                    output[start + offset] = func(vec[offset:(offset + window_size)])
+                offsets = list(range(0, n_arr - window_size + 1, stripe))
+
+                if return_valid_only:
+                    output = np.empty(len(offsets))
+                    for i, offset in enumerate(offsets):
+                        output[i] = func(vec[offset:(offset + window_size)])
+                else:
+                    for offset in offsets:
+                        output[start + offset] = func(vec[offset:(offset + window_size)])
 
         elif type == "s":
             start = window_size - 1
-            for offset in range(n_arr - window_size + 1):
-                output[start + offset] = func(vec[(start + offset + 1 - window_size):(start + offset + 1)])
+            offsets = list(range(0, n_arr - window_size + 1, stripe))
+
+            if return_valid_only:
+                output = np.empty(len(offsets))
+                for i, offset in enumerate(offsets):
+                    output[i] = func(vec[(start + offset + 1 - window_size):(start + offset + 1)])
+            else:
+                for offset in offsets:
+                    output[start + offset] = func(vec[(start + offset + 1 - window_size):(start + offset + 1)])
 
         elif type == "f":
-            for i in range(n_arr - window_size + 1 - forward_offset):
-                output[i] = func(vec[(i + forward_offset):(i + forward_offset + window_size)])
+            offsets = list(range(0, n_arr - window_size + 1 - forward_offset, stripe))
+
+            if return_valid_only:
+                output = np.empty(len(offsets))
+                for i, offset in enumerate(offsets):
+                    output[i] = func(vec[(offset + forward_offset):(offset + forward_offset + window_size)])
+            else:
+                for offset in offsets:
+                    output[offset] = func(vec[(offset + forward_offset):(offset + forward_offset + window_size)])
 
         else:
             raise Exception("Invalid type: {}. type must be 'c', 's' or 'f'.".format(type))
@@ -2478,23 +2512,45 @@ def _movoper(arr, func, window_size, type, padding, padding_with=np.nan, forward
             else:
                 offset_fore = int(np.floor(window_size / 2.0)) - 1
             offset_back = window_size - offset_fore - 1
-            for i in range(n_arr):
-                output_val = func(vec[max(i - offset_fore, 0):min(i + offset_back + 1, n_arr)])
+            for offset in range(0, n_arr, stripe):
+                start = offset - offset_fore
+                end = offset + offset_back + 1
+                if (start >= 0) and (end <= n_arr):
+                    output_val = func(vec[start:end])
+                elif (start < 0) and (end > n_arr):
+                    output_val = func(np.concatenate([[padding_with] * (-start), vec, [padding_with] * (end - n_arr)]))
+                elif start < 0:
+                    output_val = func(np.concatenate([[padding_with] * (-start), vec]))
+                else:
+                    output_val = func(np.concatenate([vec, [padding_with] * (end - n_arr)]))
+
                 if not pd.isna(output_val):
-                    output[i] = output_val
+                    output[offset] = output_val
 
         elif type == "s":
             offset_fore = window_size - 1
-            for i in range(n_arr):
-                output_val = func(vec[max(i - offset_fore, 0):(i + 1)])
+            for offset in range(0, n_arr, stripe):
+                start = offset - offset_fore
+                end = offset + 1
+                if start >= 0:
+                    output_val = func(vec[start:end])
+                else:
+                    output_val = func(np.concatenate([[padding_with] * (-start), vec]))
+
                 if not pd.isna(output_val):
-                    output[i] = output_val
+                    output[offset] = output_val
 
         elif type == "f":
-            for i in range(n_arr - forward_offset):
-                output_val = func(vec[(i + forward_offset):min(i + forward_offset + window_size, n_arr)])
+            for offset in range(0, n_arr - forward_offset, stripe):
+                start = offset + forward_offset
+                end = offset + forward_offset + window_size
+                if end <= n_arr:
+                    output_val = func(vec[start:end])
+                else:
+                    output_val = func(np.concatenate([vec, [padding_with] * (end - n_arr)]))
+
                 if not pd.isna(output_val):
-                    output[i] = output_val
+                    output[offset] = output_val
 
         else:
             raise Exception("Invalid type: {}. type must be 'c', 's' or 'f'.".format(type))
@@ -2506,35 +2562,35 @@ def _movoper(arr, func, window_size, type, padding, padding_with=np.nan, forward
 
 
 def ma(arr, window_size=5, type="c", padding="valid", padding_with=0.0, forward_offset=1):
-    return _movoper(arr, np.nanmean, window_size, type, padding, padding_with, forward_offset)
+    return movoper(arr, np.nanmean, window_size, type, padding, padding_with, forward_offset)
 
 
 def mov_mean(arr, window_size=5, type="c", padding="valid", padding_with=0.0, forward_offset=1):
-    return _movoper(arr, np.nanmean, window_size, type, padding, padding_with, forward_offset)
+    return movoper(arr, np.nanmean, window_size, type, padding, padding_with, forward_offset)
 
 
 def mov_median(arr, window_size=5, type="c", padding="valid", padding_with=0.0, forward_offset=1):
-    return _movoper(arr, np.nanmedian, window_size, type, padding, padding_with, forward_offset)
+    return movoper(arr, np.nanmedian, window_size, type, padding, padding_with, forward_offset)
 
 
 def mov_sum(arr, window_size=5, type="c", padding="valid", padding_with=0.0, forward_offset=1):
-    return _movoper(arr, np.nansum, window_size, type, padding, padding_with, forward_offset)
+    return movoper(arr, np.nansum, window_size, type, padding, padding_with, forward_offset)
 
 
 def mov_max(arr, window_size=5, type="c", padding="valid", padding_with=0.0, forward_offset=1):
-    return _movoper(arr, np.nanmax, window_size, type, padding, padding_with, forward_offset)
+    return movoper(arr, np.nanmax, window_size, type, padding, padding_with, forward_offset)
 
 
 def mov_min(arr, window_size=5, type="c", padding="valid", padding_with=0.0, forward_offset=1):
-    return _movoper(arr, np.nanmin, window_size, type, padding, padding_with, forward_offset)
+    return movoper(arr, np.nanmin, window_size, type, padding, padding_with, forward_offset)
 
 
 def mov_all(arr, window_size=5, type="c", padding="valid", padding_with=False, forward_offset=1):
-    return _movoper(arr, np.all, window_size, type, padding, padding_with, forward_offset)
+    return movoper(arr, np.all, window_size, type, padding, padding_with, forward_offset)
 
 
 def mov_any(arr, window_size=5, type="c", padding="valid", padding_with=False, forward_offset=1):
-    return _movoper(arr, np.any, window_size, type, padding, padding_with, forward_offset)
+    return movoper(arr, np.any, window_size, type, padding, padding_with, forward_offset)
 
 
 def __test_ma():
