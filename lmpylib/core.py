@@ -13,6 +13,7 @@ from datetime import timedelta
 import time
 import threading
 import pytz
+import re
 
 
 pd.set_option("display.width", 250)
@@ -30,7 +31,7 @@ def _summarize_categorical(data, include_na_only_if_exist=False, sort_by="count"
         group = group.sort_index(ascending=ascending)
     group.index = group.index.astype("str")
     if (not include_na_only_if_exist) or (na_count > 0):
-        group = group.append(pd.DataFrame({"Count": na_count}, index=["NA"]), ignore_index=False)
+        group = group.append(pd.DataFrame({"Count": np.array([na_count], dtype=int)}, index=["NA"]), ignore_index=False)
     return group
 
 
@@ -289,7 +290,7 @@ def summary(data, is_numeric=None, print_only=None, auto_combine_result=True, _n
                 if np.any([_is_datetime(val) for val in data]):
                     is_datetime = True
                 else:
-                    is_categorical = np.any([_is_categorical(val) for val in data])
+                    is_numeric = not np.any([_is_categorical(val) for val in data])
             elif str(data.dtype).find("date") >= 0:
                 is_datetime = True
             elif str(data.dtype) == "category":
@@ -504,6 +505,21 @@ def _get_group_index_of_index(x, group_by):
         return group_by
     else:
         raise Exception("group_by must be a DataFrame's index name or DataFrame's index number")
+
+
+def _get_group_index_of_columns(x, group_by):
+    if type(group_by) == str:
+        group_col = np.argwhere(np.array(x.columns.values) == group_by)
+        if (len(group_col) != 1) or (group_col[0][0] == -1):
+            raise Exception("group_by column '{}' doesn't exist".format(group_by))
+        else:
+            return group_col[0][0]
+    elif type(group_by) == int:
+        if group_by >= len(x.columns):
+            raise Exception("Invalid group_by index '{}'".format(group_by))
+        return group_by
+    else:
+        raise Exception("group_by must be a DataFrame's column name or DataFrame's column index")
 
 
 def _continuous_color_map(z_arr, base_color):
@@ -1209,7 +1225,7 @@ def barplot(x, y=None, width=0.5, color=None, xlab=None, ylab=None, title=None, 
                 y_col = 1
 
                 if (group_by is not None) and (group_by != ""):
-                    group_col = _get_group_index_of_index(x, group_by)
+                    group_col = _get_group_index_of_columns(x, group_by)
                     if group_col == 0:
                         x_col = 1
                         y_col = 2
@@ -1454,7 +1470,7 @@ def plot(x, y=None, z=None, style="solid", width=1.5, color=None, marker=None, m
                 y_col = 1
 
                 if (group_by is not None) and (group_by != ""):
-                    group_col = _get_group_index_of_index(x, group_by)
+                    group_col = _get_group_index_of_columns(x, group_by)
                     if group_col == 0:
                         x_col = 1
                         y_col = 2
@@ -1699,6 +1715,111 @@ def plot(x, y=None, z=None, style="solid", width=1.5, color=None, marker=None, m
         plt.title(title)
     if show:
         plt.show()
+
+
+def get_time_series_ticks(datetime_arr, datetime_format="auto", snap_to_major_tick=True, tick_interval="auto", n_x_ticks=10):
+    tz_name = None
+    if ((type(datetime_arr) == list) or (type(datetime_arr) == np.ndarray)) and (len(datetime_arr) > 0) and (
+            str(type(datetime_arr[0])) == "<class 'datetime.datetime'>"):
+        if datetime_arr[0].tzinfo is not None:
+            tz_name = datetime_arr[0].tzinfo.zone
+    elif (type(datetime_arr) == pd.Series) and (str(datetime_arr.dtype) != "datetime64[D]") and (datetime_arr.dt is not None) and (datetime_arr.dt.tz is not None):
+        tz_name = datetime_arr.dt.tz.zone
+
+    min_date_time, max_date_time = np.min(datetime_arr), np.max(datetime_arr)
+    if type(min_date_time) == np.datetime64:
+        min_date_time = datetime.fromtimestamp(min_date_time.astype(float) / 1e9)
+        if tz_name is not None:
+            min_date_time = localize_datetime(min_date_time, tz_name)
+        max_date_time = datetime.fromtimestamp(max_date_time.astype(float) / 1e9)
+        if tz_name is not None:
+            max_date_time = localize_datetime(max_date_time, tz_name)
+    ori_min_date_time, ori_max_date_time = min_date_time, max_date_time
+    n_sec_diff = (max_date_time - min_date_time).total_seconds()
+
+    if snap_to_major_tick:
+        if n_sec_diff <= 10 * 60:
+            # snap to 1 min
+            min_date_time = min_date_time + timedelta(seconds=-min_date_time.second)
+            max_date_time = max_date_time + timedelta(seconds=(60 - max_date_time.second) % 60)
+        elif 10 * 60 < n_sec_diff <= 60 * 60:
+            # snap to 5 min
+            min_date_time = min_date_time + timedelta(seconds=-min_date_time.second) + timedelta(minutes=-(min_date_time.minute % 5))
+            max_date_time = max_date_time + timedelta(seconds=(60 - max_date_time.second) % 60)
+            max_date_time = max_date_time + timedelta(minutes=(5 - (max_date_time.minute % 5)) % 5)
+        elif 60 * 60 < n_sec_diff <= 2 * 60 * 60:
+            # snap to 10 min
+            min_date_time = min_date_time + timedelta(seconds=-min_date_time.second) + timedelta(minutes=-(min_date_time.minute % 10))
+            max_date_time = max_date_time + timedelta(seconds=(60 - max_date_time.second) % 60)
+            max_date_time = max_date_time + timedelta(minutes=(10 - (max_date_time.minute % 10)) % 10)
+        elif 2 * 60 * 60 < n_sec_diff <= 6 * 60 * 60:
+            # snap to 30 min
+            min_date_time = min_date_time + timedelta(seconds=-min_date_time.second) + timedelta(minutes=-(min_date_time.minute % 30))
+            max_date_time = max_date_time + timedelta(seconds=(60 - max_date_time.second) % 60)
+            max_date_time = max_date_time + timedelta(minutes=(30 - (max_date_time.minute % 30)) % 30)
+        elif 6 * 60 * 60 < n_sec_diff <= 2 * 24 * 60 * 60:
+            # snap to 1 hr
+            min_date_time = min_date_time + timedelta(seconds=-min_date_time.second) + timedelta(minutes=-min_date_time.minute)
+            max_date_time = max_date_time + timedelta(seconds=(60 - max_date_time.second) % 60)
+            max_date_time = max_date_time + timedelta(minutes=(60 - max_date_time.minute) % 60)
+        else:
+            # snap to 1 day
+            min_date_time = min_date_time + timedelta(seconds=-min_date_time.second) + timedelta(minutes=-min_date_time.minute) + timedelta(
+                minutes=-min_date_time.hour)
+            max_date_time = max_date_time + timedelta(seconds=(60 - max_date_time.second) % 60)
+            max_date_time = max_date_time + timedelta(minutes=(60 - max_date_time.minute) % 60)
+            max_date_time = max_date_time + timedelta(minutes=(24 - max_date_time.hour) % 24)
+        n_sec_diff = (max_date_time - min_date_time).total_seconds()
+
+    if datetime_format == "auto":
+        if n_sec_diff <= 60 * 60:
+            datetime_format = "%M:%S s"
+        elif 60 * 60 < n_sec_diff <= 24 * 60 * 60:
+            datetime_format = "%H:%M %p"
+        elif 24 * 60 * 60 < n_sec_diff <= 28 * 24 * 60 * 60:
+            datetime_format = "%m-%d %H%p"
+        elif 28 * 24 * 60 * 60 < n_sec_diff <= 365 * 24 * 60 * 60:
+            datetime_format = "%h-%d"
+        else:
+            datetime_format = "%y-%h-%d"
+
+    if snap_to_major_tick:
+        if (tick_interval is None) or (tick_interval == "auto"):
+            n_sec_per_tick = int(round(n_sec_diff / n_x_ticks, 0))
+        else:
+            match = re.search("(\d+)\s*(s|m|h|d)", str(tick_interval))
+            assert match is not None, "invalid tick_interval, e.g. are 5 sec, 10 min, 3 hour"
+            if match[2] == "s":
+                n_sec_per_tick = int(match[1])
+            elif match[2] == "m":
+                n_sec_per_tick = int(match[1]) * 60
+            elif match[2] == "h":
+                n_sec_per_tick = int(match[1]) * 60 * 60
+            elif match[2] == "d":
+                n_sec_per_tick = int(match[1]) * 60 * 60 * 24
+            n_x_ticks = int(np.ceil(n_sec_diff / n_sec_per_tick))
+
+        x_ticks = {}
+        for t in range(n_x_ticks + 1):
+            tick_date_time = min_date_time + timedelta(seconds=n_sec_per_tick * t)
+            if tz_name is not None:
+                tick_date_time = localize_datetime(tick_date_time, tz_name)
+            x_ticks[tick_date_time] = tick_date_time.strftime(datetime_format)
+            if t > 0:
+                prev_date_time = min_date_time + timedelta(seconds=n_sec_per_tick * (t - 1))
+                if prev_date_time < ori_min_date_time < tick_date_time:
+                    x_ticks[ori_min_date_time] = " "
+                if prev_date_time < ori_max_date_time < tick_date_time:
+                    x_ticks[ori_max_date_time] = " "
+    else:
+        n_sec_per_tick = int(n_sec_diff / (n_x_ticks - 1))
+        x_ticks = {}
+        for t in range(n_x_ticks):
+            date_time = min_date_time + timedelta(seconds=n_sec_per_tick * t)
+            if tz_name is not None:
+                date_time = localize_datetime(date_time, tz_name)
+            x_ticks[date_time] = date_time.strftime(datetime_format)
+    return x_ticks
 
 
 def plot2(x, style="solid", width=1.5, color=None, marker=None, marker_size=None, alpha=None, xlab=None, ylab=None,
@@ -2659,3 +2780,18 @@ def __test_ma():
     ma([1, 3, 2], 2, "c", "valid", forward_offset=0)
     ma([1, 3, 2, 10], 2, "c", "valid", forward_offset=0)
     ma([1, 3, 2, None, 1], 2, "c", "valid", forward_offset=0)
+
+
+# base_time = datetime(2020, 9, 10, 23, 2, 13)
+# sn = np.linspace(0, 977, 978)
+# date_time_arr = [base_time + timedelta(minutes=s*5) for s in sn]
+# date_time_arr = localize_datetime([base_time + timedelta(minutes=s*5) for s in sn], "Asia/Singapore")
+# date_time_arr = np.array([base_time + timedelta(minutes=s*5) for s in sn])
+# date_time_arr = pd.Series([base_time + timedelta(minutes=s*5) for s in sn])
+# date_time_arr = localize_datetime(pd.to_datetime(pd.Series([base_time + timedelta(minutes=s*5) for s in sn])))
+# y = np.sin(sn / 50)
+# # sn = np.linspace(0, 11520, 11520)
+# # date_time_arr = localize_datetime(pd.to_datetime(pd.Series([base_time + timedelta(seconds=s) for s in sn])))
+# # y = np.sin(sn/50)
+
+

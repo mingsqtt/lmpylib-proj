@@ -93,38 +93,98 @@ def nmea_to_degree_fraction(nmea_value):
 
 
 def effective_displacement(points, uom="m"):
-    assert ((len(points.shape) == 3) and (points.shape[1] == 2) and (points.shape[2] == 2)) or ((len(points.shape) == 2) and (points.shape[1] == 4)), "points must have shape of (n, 2, 2) or (n, 4)"
+    """
+    :param points: (n, prev_lat_lng, current_lat_lng) or (n, prev_lat_lng, current_lat_lng, next_lat_lng) or (n, prev_lat, prev_lng, curr_lat, curr_lng) or (n, prev_lat, prev_lng, curr_lat, curr_lng, next_lat, next_lng)
+    :param uom: "m" or "km"
+    :return: (distance, orientation_angle)
+    """
+    assert (((len(points.shape) == 3) or (len(points.shape) == 4)) and (points.shape[1] == 2) and (points.shape[2] == 2)) or (
+            (len(points.shape) == 2) and ((points.shape[1] == 4) or (
+            points.shape[1] == 6))), "points must have shape of (n, 2, 2) or (n, 2, 2, 2) or (n, 4) or (n, 6)"
     assert (uom == "m") or (uom == "km"), "uom must be km or m"
     if len(points.shape) == 3:
         vec = np.sum(points[:, 1, :] - points[:, 0, :], axis=0)
-        x = vec[0]
-        y = vec[1]
+        y = vec[0]
+        x = vec[1]
     else:
         y = np.sum(points[:, 2] - points[:, 0])
         x = np.sum(points[:, 3] - points[:, 1])
+
+    angles = np.arctan2(y, x)
+    kms = np.round((x ** 2 + y ** 2) ** 0.5 * np.pi * 6371 / 2 / 90, 3)
+
     if uom == "km":
-        return round((x ** 2 + y ** 2) ** 0.5 * math.pi * 6371 / 2 / 90, 3), np.arctan2(y, x)
+        return kms, angles
     elif uom == "m":
-        return round((x ** 2 + y ** 2) ** 0.5 * math.pi * 6371 * 1000 / 2 / 90, 0), np.arctan2(y, x)
+        return np.round(kms * 1000, 0), angles
     else:
         return None, None
 
 
-def displacement(points, uom="km"):
-    assert ((len(points.shape) == 3) and (points.shape[1] == 2) and (points.shape[2] == 2)) or ((len(points.shape) == 2) and (points.shape[1] == 4)), "points must have shape of (n, 2, 2) or (n, 4)"
+def displacement(points, uom="km", include_orient_change=False):
+    """
+    :param points: (n, prev_lat_lng, current_lat_lng) or (n, prev_lat_lng, current_lat_lng, next_lat_lng) or (n, prev_lat, prev_lng, curr_lat, curr_lng) or (n, prev_lat, prev_lng, curr_lat, curr_lng, next_lat, next_lng)
+    :param uom: "m" or "km"
+    :param include_orient_change: include cosine of the orientation angle change in the output
+    :return: (distance, orientation_angle) or (distance, orientation_angle, cosine_angle_change)
+    """
+    if include_orient_change:
+        assert ((len(points.shape) == 4) and (points.shape[1] == 2) and (points.shape[2] == 2) and (points.shape[3] == 2)) or (
+                (len(points.shape) == 2) and (points.shape[1] == 6)), "points must have shape of (n, 2, 2, 2) or (n, 6)"
+    else:
+        assert (((len(points.shape) == 3) or (len(points.shape) == 4)) and (points.shape[1] == 2) and (points.shape[2] == 2)) or (
+                       (len(points.shape) == 2) and ((points.shape[1] == 4) or (
+                       points.shape[1] == 6))), "points must have shape of (n, 2, 2) or (n, 2, 2, 2) or (n, 4) or (n, 6)"
     assert (uom == "m") or (uom == "km"), "uom must be km or m"
-    if len(points.shape) == 3:
+    if len(points.shape) == 2:
+        y1 = points[:, 2] - points[:, 0]
+        x1 = points[:, 3] - points[:, 1]
+    else:
         vec = points[:, 1, :] - points[:, 0, :]
-        y = vec[:, 0]
-        x = vec[:, 1]
+        y1 = vec[:, 0]
+        x1 = vec[:, 1]
+
+    angles = np.arctan2(y1, x1)
+    kms = np.round((x1 ** 2 + y1 ** 2) ** 0.5 * np.pi * 6371 / 2 / 90, 3)
+
+    if include_orient_change:
+        if len(points.shape) == 2:
+            y2 = points[:, 4] - points[:, 2]
+            x2 = points[:, 5] - points[:, 3]
+            next_next_lat = np.array(shift_up(points[:, 4]))
+            next_next_lng = np.array(shift_up(points[:, 5]))
+            y3 = next_next_lat - points[:, 2]
+            x3 = next_next_lng - points[:, 3]
+        else:
+            vec = points[:, 2, :] - points[:, 1, :]
+            y2 = vec[:, 0]
+            x2 = vec[:, 1]
+            next_next_lat = np.array(shift_up(points[:, 2, 0]))
+            next_next_lng = np.array(shift_up(points[:, 2, 1]))
+            y3 = next_next_lat - points[:, 1, 0]
+            x3 = next_next_lng - points[:, 1, 1]
+
+        next_dist = np.array(shift_up(kms, fill_tail_with=0))
+
+        sim_2_1 = (x1 * x2 + y1 * y2) / ((x1 ** 2 + y1 ** 2) ** 0.5 * (x2 ** 2 + y2 ** 2) ** 0.5)
+        sim_2_1[pd.isna(sim_2_1)] = 1
+
+        sim_3_1 = (x1 * x3 + y1 * y3) / ((x1 ** 2 + y1 ** 2) ** 0.5 * (x3 ** 2 + y3 ** 2) ** 0.5)
+        sim_3_1[pd.isna(sim_3_1)] = 1
+
+        override_filt = next_dist < 0.03
+        sim_2_1[override_filt] = np.minimum(sim_2_1[override_filt], sim_3_1[override_filt])
+
+        if uom == "km":
+            return kms, angles, sim_2_1
+        elif uom == "m":
+            return np.round(kms * 1000, 0), angles, sim_2_1
+        return None, None, None
     else:
-        y = points[:, 2] - points[:, 0]
-        x = points[:, 3] - points[:, 1]
-    if uom == "km":
-        return np.round((x ** 2 + y ** 2) ** 0.5 * np.pi * 6371 / 2 / 90, 3), np.arctan2(y, x)
-    elif uom == "m":
-        return np.round((x ** 2 + y ** 2) ** 0.5 * np.pi * 6371 * 1000 / 2 / 90, 0), np.arctan2(y, x)
-    else:
+        if uom == "km":
+            return kms, angles
+        elif uom == "m":
+            return np.round(kms * 1000, 0), angles
         return None, None
 
 
@@ -137,6 +197,33 @@ def distance(lat_prev, lng_prev, lat, lng, uom="km"):
             return 0
     y = lat - lat_prev
     x = lng - lng_prev
+    if uom == "km":
+        return np.round((x ** 2 + y ** 2) ** 0.5 * np.pi * 6371 / 2 / 90, 3)
+    elif uom == "m":
+        return np.round((x ** 2 + y ** 2) ** 0.5 * np.pi * 6371 * 1000 / 2 / 90, 0)
+    else:
+        return None
+
+
+def distance_matrix(lat_a, lng_a, lat_b, lng_b, uom="km"):
+    if type(lat_a) == list:
+        lat_a = np.array(lat_a)
+    if type(lng_a) == list:
+        lng_a = np.array(lng_a)
+    if type(lat_b) == list:
+        lat_b = np.array(lat_b)
+    if type(lng_b) == list:
+        lng_b = np.array(lng_b)
+    assert (type(lat_a) == np.ndarray) and (type(lng_a) == np.ndarray) and (type(lat_b) == np.ndarray) and (
+                type(lng_b) == np.ndarray), "inputs must be 1-d ndarray"
+    assert (len(lat_a) == len(lng_a)) and (len(lat_b) == len(lng_b)), "array sizes are not the same"
+    assert (uom == "m") or (uom == "km"), "uom must be km or m"
+    mtx_a2b_lat = np.repeat(lat_a, len(lat_b)).reshape((-1, len(lat_b)))
+    mtx_a2b_lng = np.repeat(lng_a, len(lng_b)).reshape((-1, len(lng_b)))
+    mtx_b2a_lat = np.repeat(lat_b.reshape((-1, 1)), len(lat_a), axis=1).transpose()
+    mtx_b2a_lng = np.repeat(lng_b.reshape((-1, 1)), len(lng_a), axis=1).transpose()
+    y = mtx_a2b_lat - mtx_b2a_lat
+    x = mtx_a2b_lng - mtx_b2a_lng
     if uom == "km":
         return np.round((x ** 2 + y ** 2) ** 0.5 * np.pi * 6371 / 2 / 90, 3)
     elif uom == "m":

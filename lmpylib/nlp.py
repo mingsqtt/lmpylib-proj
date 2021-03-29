@@ -2,8 +2,11 @@ import numpy as np
 import pandas as pd
 import re
 import hashlib
+from datetime import timedelta, datetime
 
-email_regex = "(?i)(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])"
+EMAIL_REGEX = "(?i)(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])"
+SHORT_MONTH_NAMES = np.array(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"])
+LONG_MONTH_NAMES = np.array(["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"])
 
 
 def search_pattern(text, pattern, take_parts=0):
@@ -37,12 +40,12 @@ def search_pattern(text, pattern, take_parts=0):
             return results
 
 
-def search_time_pattern(text, search_prepositions=["before", "bfr", "after", "aft", "between", "from", "frm", "no later than", "no earlier than", "at", "to", "by", "till", "not", "n't"], including_named_time=["early morning", "morning", "late afternoon", "afternoon", "noon", "late evening", "evening", "midnight", "night"]):
+def search_time_pattern(text, search_prepositions=["before", "bfr", "after", "aft", "between", "from", "frm", "no later than", "no earlier than", "at", "to", "by", "till", "not", "n't"], including_named_time=["early morning", "morning", "late afternoon", "afternoon", "noon", "late evening", "evening", "midnight", "tonight", "night"]):
     hour_part = "(00|01|02|03|04|05|06|07|08|09|10|11|12|13|14|15|16|17|18|19|20|21|22|23|\d)"
     min_part = "(?::([0-5]?[0-9])(?::[0-5][0-9])?)"
     dot_min_part = "(?:.([0-5]?[0-9])(?:.[0-5][0-9])?)"
     full_min_part = "([0-5][0-9])"
-    am_part = "(?:\s*[\./\s]?[\(@]?\s?(a\.m|am|p\.m|pm|morning|afternoon|noon|night|evening|hours|hour|hrs|hr)(?:\s?\))?)"
+    am_part = "(?:\s*[\./\s]?[\(@]?\s?(a\.m|am|p\.m|pm|morning|afternoon|noon|tonight|night|evening|hours|hour|hrs|hr)(?:\s?\))?)"
     prep_part_opt = "(?:({})\s*)?".format("|".join(search_prepositions))
     prep_part_opt_for_named = "(?:({})\s+)?".format("|".join(search_prepositions))
     prep_part = "(?:({})\s*)".format("|".join(search_prepositions))
@@ -171,11 +174,11 @@ def search_time_pattern(text, search_prepositions=["before", "bfr", "after", "af
         return temp
 
 
-def search_date_pattern(text, search_prepositions=["before", "bfr", "after", "aft", "between", "from", "frm", "no later than", "no earlier than", "as of", "at", "on", "to", "by", "since", "till", "not", "n't"], including_named_date=["today", "tdy", "the day after tomorrow", "day after tomorrow", "tomorrow", "tmr", "next day", "last weekend", "this weekend", "next weekend", "weekend", "last (?:monday|(?-i:M)on)", "this (?:monday|(?-i:M)on)", "coming (?:monday|(?-i:M)on)", "next (?:monday|(?-i:M)on)", "(?:monday|(?-i:M)on)", "last (?:tuesday|(?-i:T)ue)", "this (?:tuesday|(?-i:T)ue)", "coming (?:tuesday|(?-i:T)ue)", "next (?:tuesday|(?-i:T)ue)", "(?:tuesday|(?-i:T)ue)", "last (?:wednesday|(?-i:W)ed)", "this (?:wednesday|(?-i:W)ed)", "coming (?:wednesday|(?-i:W)ed)", "next (?:wednesday|(?-i:W)ed)", "(?:wednesday|(?-i:W)ed)", "last (?:thursday|(?-i:T)hu)", "this (?:thursday|(?-i:T)hu)", "coming (?:thursday|(?-i:T)hu)", "next (?:thursday|(?-i:T)hu)", "(?:thursday|(?-i:T)hu)", "last (?:friday|(?-i:F)ri)", "this (?:friday|(?-i:F)ri)", "coming (?:friday|(?-i:F)ri)", "next (?:friday|(?-i:F)ri)", "(?:friday|(?-i:F)ri)", "last (?:saturday|(?-i:S)at)", "this (?:saturday|(?-i:S)at)", "coming (?:saturday|(?-i:S)at)", "next (?:saturday|(?-i:S)at)", "(?:saturday|(?-i:S)at)", "last (?:sunday|(?-i:S)un)", "this (?:sunday|(?-i:S)un)", "coming (?:sunday|(?-i:S)un)", "next (?:sunday|(?-i:S)un)", "(?:sunday|(?-i:S)un)"]):
+def search_date_pattern(text, search_prepositions=["before", "bfr", "after", "aft", "between", "from", "frm", "no later than", "no earlier than", "as of", "at", "on", "to", "by", "since", "till", "not", "n't"], including_named_date=["today", "tdy", "tonight", "the day after tomorrow", "day after tomorrow", "tomorrow", "tmr", "next day", "last weekend", "this weekend", "next weekend", "weekend", "last (?:monday|(?-i:M)on)", "this (?:monday|(?-i:M)on)", "coming (?:monday|(?-i:M)on)", "next (?:monday|(?-i:M)on)", "(?:monday|(?-i:M)on)", "last (?:tuesday|(?-i:T)ue)", "this (?:tuesday|(?-i:T)ue)", "coming (?:tuesday|(?-i:T)ue)", "next (?:tuesday|(?-i:T)ue)", "(?:tuesday|(?-i:T)ue)", "last (?:wednesday|(?-i:W)ed)", "this (?:wednesday|(?-i:W)ed)", "coming (?:wednesday|(?-i:W)ed)", "next (?:wednesday|(?-i:W)ed)", "(?:wednesday|(?-i:W)ed)", "last (?:thursday|(?-i:T)hu)", "this (?:thursday|(?-i:T)hu)", "coming (?:thursday|(?-i:T)hu)", "next (?:thursday|(?-i:T)hu)", "(?:thursday|(?-i:T)hu)", "last (?:friday|(?-i:F)ri)", "this (?:friday|(?-i:F)ri)", "coming (?:friday|(?-i:F)ri)", "next (?:friday|(?-i:F)ri)", "(?:friday|(?-i:F)ri)", "last (?:saturday|(?-i:S)at)", "this (?:saturday|(?-i:S)at)", "coming (?:saturday|(?-i:S)at)", "next (?:saturday|(?-i:S)at)", "(?:saturday|(?-i:S)at)", "last (?:sunday|(?-i:S)un)", "this (?:sunday|(?-i:S)un)", "coming (?:sunday|(?-i:S)un)", "next (?:sunday|(?-i:S)un)", "(?:sunday|(?-i:S)un)"]):
     day_part = "([0-3]?[0-9])"
     # num_month_part = "(12|11|10|(?:0?[1-9]))"
-    cha_month_part = "(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)"
-    month_part = "(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|12|11|10|(?:0?[1-9]))"
+    cha_month_part = "(" + "|".join(LONG_MONTH_NAMES.tolist() + SHORT_MONTH_NAMES.tolist()) + ")"
+    month_part = "(" + "|".join(LONG_MONTH_NAMES.tolist() + SHORT_MONTH_NAMES.tolist()) + "|12|11|10|(?:0?[1-9]))"
     year_part = "((?:19|20)?[0-9]{2})"
     full_year_part = "((?:19|20)[0-9]{2})"
     prep_part_opt = "(?:({})\s*)?".format("|".join(search_prepositions))
@@ -353,7 +356,7 @@ def search_date_pattern(text, search_prepositions=["before", "bfr", "after", "af
         return temp
 
 
-def search_all_dates(text, search_prepositions=["before", "bfr", "after", "aft", "between", "from", "frm", "no later than", "no earlier than", "as of", "at", "on", "to", "by", "since", "till", "-", "–", "~", "not", "n't"], including_named_date=["today", "tdy", "the day after tomorrow", "day after tomorrow", "tomorrow", "tmr", "next day", "last weekend", "this weekend", "next weekend", "weekend", "last (?:monday|(?-i:M)on)", "this (?:monday|(?-i:M)on)", "coming (?:monday|(?-i:M)on)", "next (?:monday|(?-i:M)on)", "(?:monday|(?-i:M)on)", "last (?:tuesday|(?-i:T)ue)", "this (?:tuesday|(?-i:T)ue)", "coming (?:tuesday|(?-i:T)ue)", "next (?:tuesday|(?-i:T)ue)", "(?:tuesday|(?-i:T)ue)", "last (?:wednesday|(?-i:W)ed)", "this (?:wednesday|(?-i:W)ed)", "coming (?:wednesday|(?-i:W)ed)", "next (?:wednesday|(?-i:W)ed)", "(?:wednesday|(?-i:W)ed)", "last (?:thursday|(?-i:T)hu)", "this (?:thursday|(?-i:T)hu)", "coming (?:thursday|(?-i:T)hu)", "next (?:thursday|(?-i:T)hu)", "(?:thursday|(?-i:T)hu)", "last (?:friday|(?-i:F)ri)", "this (?:friday|(?-i:F)ri)", "coming (?:friday|(?-i:F)ri)", "next (?:friday|(?-i:F)ri)", "(?:friday|(?-i:F)ri)", "last (?:saturday|(?-i:S)at)", "this (?:saturday|(?-i:S)at)", "coming (?:saturday|(?-i:S)at)", "next (?:saturday|(?-i:S)at)", "(?:saturday|(?-i:S)at)", "last (?:sunday|(?-i:S)un)", "this (?:sunday|(?-i:S)un)", "coming (?:sunday|(?-i:S)un)", "next (?:sunday|(?-i:S)un)", "(?:sunday|(?-i:S)un)"], _index_offset=0):
+def search_all_dates(text, search_prepositions=["before", "bfr", "after", "aft", "between", "from", "frm", "no later than", "no earlier than", "as of", "at", "on", "to", "by", "since", "till", "-", "–", "~", "not", "n't"], including_named_date=["today", "tdy", "tonight", "the day after tomorrow", "day after tomorrow", "tomorrow", "tmr", "next day", "last weekend", "this weekend", "next weekend", "weekend", "last (?:monday|(?-i:M)on)", "this (?:monday|(?-i:M)on)", "coming (?:monday|(?-i:M)on)", "next (?:monday|(?-i:M)on)", "(?:monday|(?-i:M)on)", "last (?:tuesday|(?-i:T)ue)", "this (?:tuesday|(?-i:T)ue)", "coming (?:tuesday|(?-i:T)ue)", "next (?:tuesday|(?-i:T)ue)", "(?:tuesday|(?-i:T)ue)", "last (?:wednesday|(?-i:W)ed)", "this (?:wednesday|(?-i:W)ed)", "coming (?:wednesday|(?-i:W)ed)", "next (?:wednesday|(?-i:W)ed)", "(?:wednesday|(?-i:W)ed)", "last (?:thursday|(?-i:T)hu)", "this (?:thursday|(?-i:T)hu)", "coming (?:thursday|(?-i:T)hu)", "next (?:thursday|(?-i:T)hu)", "(?:thursday|(?-i:T)hu)", "last (?:friday|(?-i:F)ri)", "this (?:friday|(?-i:F)ri)", "coming (?:friday|(?-i:F)ri)", "next (?:friday|(?-i:F)ri)", "(?:friday|(?-i:F)ri)", "last (?:saturday|(?-i:S)at)", "this (?:saturday|(?-i:S)at)", "coming (?:saturday|(?-i:S)at)", "next (?:saturday|(?-i:S)at)", "(?:saturday|(?-i:S)at)", "last (?:sunday|(?-i:S)un)", "this (?:sunday|(?-i:S)un)", "coming (?:sunday|(?-i:S)un)", "next (?:sunday|(?-i:S)un)", "(?:sunday|(?-i:S)un)"], _index_offset=0):
     if type(text) == str:
         results = list()
         result = search_date_pattern(text, search_prepositions, including_named_date)
@@ -382,7 +385,7 @@ def search_all_dates(text, search_prepositions=["before", "bfr", "after", "aft",
         raise Exception("text must be string")
 
 
-def search_all_times(text, search_prepositions=["before", "bfr", "after", "aft", "between", "from", "frm", "no later than", "no earlier than", "at", "to", "by", "till", "-", "–", "~", "not", "n't"], including_named_time=["early morning", "morning", "late afternoon", "afternoon", "noon", "late evening", "evening", "midnight", "night"], _index_offset=0):
+def search_all_times(text, search_prepositions=["before", "bfr", "after", "aft", "between", "from", "frm", "no later than", "no earlier than", "at", "to", "by", "till", "-", "–", "~", "not", "n't"], including_named_time=["early morning", "morning", "late afternoon", "afternoon", "noon", "late evening", "evening", "midnight", "tonight", "night"], _index_offset=0):
     if type(text) == str:
         results = list()
         result = search_time_pattern(text, search_prepositions, including_named_time)
@@ -997,3 +1000,103 @@ def eval_seqential_labelling(actuals, predicts, partial_match_score=0.5, return_
             return precisions, recalls, f1s
     else:
         return None, None, None
+
+
+def tuple_to_datetime(date_tuple=None, time_tuple=None):
+    now = datetime.now()
+    prep_str = None
+
+    hour = 0
+    minute = 0
+
+    if time_tuple is not None:
+        if time_tuple[0] == "time":
+            assert len(time_tuple) == 8, "time_tuple should have length of 8"
+            prep_str = time_tuple[4]
+            hour_str = time_tuple[5]
+            min_str = time_tuple[6]
+            pm_str = time_tuple[7]
+        else:
+            assert len(time_tuple) == 5, "time_tuple should have length of 5"
+            prep_str = time_tuple[1]
+            hour_str = time_tuple[2]
+            min_str = time_tuple[3]
+            pm_str = time_tuple[4]
+
+        if hour_str is not None:
+            hour = int(hour_str)
+
+        if min_str is not None:
+            minute = int(min_str)
+
+        if pm_str is not None:
+            pm_str = pm_str.lower()
+            if 0 < hour < 12:
+                if (pm_str == "p.m") or (pm_str == "p.m.") or (pm_str == "pm") or (pm_str == "late afternoon") or (pm_str == "afternoon") or (pm_str == "noon") or (
+                        pm_str == "tonight") or (pm_str == "night") or (pm_str == "late evening") or (pm_str == "evening"):
+                    hour += 12
+            elif (hour_str is None) and (min_str is None):
+                if (pm_str == "afternoon") or (pm_str == "noon"):
+                    hour = 12
+                elif pm_str == "late afternoon":
+                    hour = 16
+                elif (pm_str == "tonight") or (pm_str == "night") or (pm_str == "late evening") or (pm_str == "evening"):
+                    hour = 20
+
+    if date_tuple is not None:
+        if date_tuple[0] == "date":
+            assert len(date_tuple) == 8, "date_tuple should have length of 8"
+            if date_tuple[4] is not None:
+                prep_str = date_tuple[4]
+            year_str = date_tuple[5]
+            month_str = date_tuple[6]
+            day_str = date_tuple[7]
+        else:
+            assert len(date_tuple) == 5, "date_tuple should have length of 5"
+            if date_tuple[1] is not None:
+                prep_str = date_tuple[1]
+            year_str = date_tuple[2]
+            month_str = date_tuple[3]
+            day_str = date_tuple[4]
+
+        if month_str is not None:
+            if len(month_str) == 3:
+                month = np.argwhere(SHORT_MONTH_NAMES == month_str.lower())[0, 0] + 1
+            elif len(month_str) > 3:
+                month = np.argwhere(LONG_MONTH_NAMES == month_str.lower())[0, 0] + 1
+            else:
+                month = int(month_str)
+        else:
+            month = str(now.month)
+
+        if year_str is None:
+            year_str = str(now.year)
+
+        if day_str is None:
+            day_str = str(now.day)
+        elif len(day_str) > 2:
+            day_str = day_str.lower()
+            if (day_str == "today") or (day_str == "tdy") or (day_str == "tonight"):
+                dt = now
+                return datetime(dt.year, dt.month, dt.day, hour, minute, 0), prep_str
+            elif (day_str == "the day after tomorrow") or (day_str == "day after tomorrow"):
+                dt = now + timedelta(days=2)
+                return datetime(dt.year, dt.month, dt.day, hour, minute, 0), prep_str
+            elif (day_str == "tomorrow") or (day_str == "tmr"):
+                dt = now + timedelta(days=1)
+                return datetime(dt.year, dt.month, dt.day, hour, minute, 0), prep_str
+            elif day_str == "yesterday":
+                dt = now + timedelta(days=-1)
+                return datetime(dt.year, dt.month, dt.day, hour, minute, 0), prep_str
+
+        if len(year_str) == 2:
+            return datetime(2000 + int(year_str), month, int(day_str), hour, minute, 0), prep_str
+        else:
+            return datetime(int(year_str), month, int(day_str), hour, minute, 0), prep_str
+
+    elif (hour != 0) or (minute != 0):
+        return datetime(1970, 1, 1, hour, minute, 0), prep_str
+
+    else:
+        return None, None
+
